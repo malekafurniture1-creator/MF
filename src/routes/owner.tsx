@@ -9,22 +9,24 @@ import { Header } from "@/components/site/Header";
 import { supabase } from "@/integrations/supabase/client";
 import { CATEGORIES, fetchProducts, type ProductWithImage } from "@/lib/products";
 import { cn } from "@/lib/utils";
+import type { Offer } from "@/lib/offers";
+import { ImageCropDialog } from "@/components/site/ImageCropDialog";
 
 export const Route = createFileRoute("/owner")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Owner Dashboard — HI LINE COMFORTS" },
+      { title: "Owner Dashboard — Maleka Furnitures" },
       {
         name: "description",
         content:
-          "Private dashboard for HI LINE COMFORTS staff to manage showroom listings.",
+          "Private dashboard for Maleka Furnitures staff to manage showroom listings.",
       },
       { name: "robots", content: "noindex" },
-      { property: "og:title", content: "Owner Dashboard — HI LINE COMFORTS" },
+      { property: "og:title", content: "Owner Dashboard — Maleka Furnitures" },
       {
         property: "og:description",
-        content: "Private product management for HI LINE COMFORTS.",
+        content: "Private product management for Maleka Furnitures.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -121,7 +123,7 @@ function Owner() {
     );
   }
 
-  return <Dashboard email={session.user.email ?? ""} />;
+  return <Dashboard email={session.user.email ?? ""} session={session} />;
 }
 
 function AuthPanel() {
@@ -161,7 +163,7 @@ function AuthPanel() {
       <Header />
       <div className="flex flex-1 items-center justify-center px-5 py-16">
         <div className="w-full max-w-sm border border-border bg-background p-8 shadow-soft">
-          <p className="eyebrow">HI LINE COMFORTS</p>
+          <p className="eyebrow">MALEKA FURNITURES</p>
           <h1 className="mt-2 font-display text-3xl">Owner access</h1>
           <p className="mt-2 text-xs text-muted-foreground">
             Staff only. Customers can browse the catalogue{" "}
@@ -226,11 +228,13 @@ function AuthPanel() {
   );
 }
 
-function Dashboard({ email }: { email: string }) {
+function Dashboard({ email, session }: { email: string; session: Session | null }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [cropQueue, setCropQueue] = useState<File[]>([]);
+  const [extraImagePaths, setExtraImagePaths] = useState<string[]>([]);
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products"],
@@ -242,12 +246,27 @@ function Dashboard({ email }: { email: string }) {
   async function upload(file: File) {
     setUploading(true);
     try {
-      const path = `${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, "_")}`;
-      const { error } = await supabase.storage
-        .from("product-images")
-        .upload(path, file, { upsert: false });
-      if (error) throw error;
-      setDraft((d) => (d ? { ...d, image_url: path } : d));
+      const token = session?.access_token || "";
+      const form = new FormData();
+      form.append("file", file);
+      form.append("prefix", "products/");
+
+      const resp = await fetch("/api/b2-upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: form,
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data?.error || `Upload failed (${resp.status})`);
+      }
+
+      // Store proxy URL in draft and keep the B2 key for later reference if needed
+      setDraft((d) => (d ? { ...d, image_url: d.image_url || data.url } : d));
+      setExtraImagePaths((paths) => [...paths, data.key]);
       toast.success("Photo uploaded");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed");
@@ -273,12 +292,15 @@ function Dashboard({ email }: { email: string }) {
         featured: draft.featured,
         sort_order: Number(draft.sort_order) || 0,
       };
-      const { error } = draft.id
-        ? await supabase.from("products").update(payload).eq("id", draft.id)
-        : await supabase.from("products").insert(payload);
+      const result = draft.id
+        ? await supabase.from("products").update(payload).eq("id", draft.id).select("id").single()
+        : await supabase.from("products").insert(payload).select("id").single();
+      const { error } = result;
       if (error) throw error;
+      const productId = result.data?.id ?? draft.id;
+      if (productId && extraImagePaths.length > 1) await (supabase as any).from("product_images").insert(extraImagePaths.map((image_url, index) => ({ product_id: productId, image_url, sort_order: index, is_primary: index === 0 })));
       toast.success(draft.id ? "Product updated" : "Product added");
-      setDraft(null);
+      setDraft(null); setExtraImagePaths([]);
       refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save");
@@ -320,9 +342,10 @@ function Dashboard({ email }: { email: string }) {
             <p className="mt-1 truncate text-xs text-muted-foreground">{email}</p>
           </div>
           <div className="flex shrink-0 gap-2">
+            <Link to="/" className="inline-flex items-center border border-border px-4 py-3 text-[0.68rem] uppercase tracking-[0.18em]">Home</Link>
             <button
               type="button"
-              onClick={() => setDraft({ ...emptyDraft })}
+              onClick={() => { setExtraImagePaths([]); setDraft({ ...emptyDraft }); }}
               className="inline-flex items-center gap-2 bg-foreground px-4 py-3 text-[0.68rem] uppercase tracking-[0.18em] text-background"
             >
               <Plus className="size-3.5" />
@@ -341,6 +364,12 @@ function Dashboard({ email }: { email: string }) {
               Sign out
             </button>
           </div>
+        </div>
+
+        <div className="mt-8 grid gap-3 sm:grid-cols-3">
+          <a href="#products" className="border border-border bg-background p-5 transition-colors hover:border-gold"><p className="eyebrow">Catalogue</p><p className="mt-2 font-display text-2xl">Products</p><p className="mt-1 text-xs text-muted-foreground">Search, edit, feature or hide pieces.</p></a>
+          <button type="button" onClick={() => { setExtraImagePaths([]); setDraft({ ...emptyDraft }); }} className="border border-border bg-background p-5 text-left transition-colors hover:border-gold"><p className="eyebrow">Create</p><p className="mt-2 font-display text-2xl">Add product</p><p className="mt-1 text-xs text-muted-foreground">Up to four cropped WebP images.</p></button>
+          <a href="#categories" className="border border-border bg-background p-5 transition-colors hover:border-gold"><p className="eyebrow">Organise</p><p className="mt-2 font-display text-2xl">Categories</p><p className="mt-1 text-xs text-muted-foreground">Manage category visibility and order.</p></a>
         </div>
 
         {draft ? (
@@ -413,21 +442,22 @@ function Dashboard({ email }: { email: string }) {
                 ) : (
                   <Upload className="size-4" />
                 )}
-                {draft.image_url ? "Replace photo" : "Upload photo"}
+                {draft.image_url ? "Add or replace photos" : "Add up to 4 photos"}
               </label>
               <input
                 id="p-photo"
                 type="file"
                 accept="image/*"
+                multiple
                 className="hidden"
                 onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void upload(file);
+                  const files = Array.from(e.target.files ?? []).slice(0, 4);
+                  if (files.length) setCropQueue(files);
                 }}
               />
               {draft.image_url ? (
                 <p className="mt-2 truncate text-xs text-muted-foreground">
-                  {draft.image_url}
+                  {extraImagePaths.length || 1} image{(extraImagePaths.length || 1) === 1 ? "" : "s"} prepared · WebP
                 </p>
               ) : null}
             </div>
@@ -478,7 +508,7 @@ function Dashboard({ email }: { email: string }) {
           </form>
         ) : null}
 
-        <div className="mt-10 space-y-3">
+        <div id="products" className="mt-10 space-y-3">
           {isLoading ? (
             <div className="h-24 animate-pulse bg-muted" />
           ) : products.length === 0 ? (
@@ -551,7 +581,69 @@ function Dashboard({ email }: { email: string }) {
             ))
           )}
         </div>
+        <section id="categories" className="mt-16 border-t border-border pt-10"><p className="eyebrow">Categories</p><h2 className="font-display text-3xl">Collection groups</h2><div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{CATEGORIES.map((category) => <div key={category} className="flex items-center justify-between border border-border bg-background p-4"><span className="text-sm">{category}</span><span className="text-xs text-muted-foreground">Active</span></div>)}</div></section>
+        <OfferManager session={session} />
       </div>
+      {cropQueue[0] ? <ImageCropDialog file={cropQueue[0]} onCancel={() => setCropQueue((items) => items.slice(1))} onComplete={(file) => { void upload(file); setCropQueue((items) => items.slice(1)); }} /> : null}
     </div>
   );
+}
+
+function OfferManager({ session }: { session: Session | null }) {
+  const queryClient = useQueryClient();
+  const { data: offers = [], isLoading } = useQuery({
+    queryKey: ["owner-offers"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("offers").select("*").order("sort_order");
+      if (error) throw error;
+      return (data ?? []) as Offer[];
+    },
+  });
+  const [headline, setHeadline] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [offerCrop, setOfferCrop] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  async function createOffer(e: React.FormEvent) {
+    e.preventDefault(); if (!headline.trim() || !imageUrl.trim()) return toast.error("Add an offer headline and image URL");
+    setSaving(true);
+    const { error } = await (supabase as any).from("offers").insert({ headline: headline.trim(), image_url: imageUrl.trim(), active: false });
+    setSaving(false); if (error) toast.error(error.message); else { setHeadline(""); setImageUrl(""); toast.success("Offer created as inactive"); queryClient.invalidateQueries({ queryKey: ["owner-offers"] }); }
+  }
+  async function uploadOffer(file: File) {
+    try {
+      const token = session?.access_token || "";
+      const form = new FormData();
+      form.append("file", file);
+      form.append("prefix", "offers/");
+
+      const resp = await fetch("/api/b2-upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: form,
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data?.error || `Upload failed (${resp.status})`);
+      }
+
+      setImageUrl(data.url);
+      toast.success("Offer photo prepared");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Offer photo upload failed");
+    }
+  }
+
+  async function toggle(offer: Offer) {
+    const { error } = await (supabase as any).from("offers").update({ active: !offer.active }).eq("id", offer.id);
+    if (error) toast.error(error.message); else { queryClient.invalidateQueries({ queryKey: ["owner-offers"] }); queryClient.invalidateQueries({ queryKey: ["active-offers"] }); }
+  }
+  async function remove(offer: Offer) {
+    if (!window.confirm(`Delete \"${offer.headline}\"?`)) return;
+    const { error } = await (supabase as any).from("offers").delete().eq("id", offer.id);
+    if (error) toast.error(error.message); else { queryClient.invalidateQueries({ queryKey: ["owner-offers"] }); queryClient.invalidateQueries({ queryKey: ["active-offers"] }); }
+  }
+  return <section className="mt-16 border-t border-border pt-10"><div className="flex items-end justify-between gap-4"><div><p className="eyebrow">Offer management</p><h2 className="font-display text-3xl">Featured offers</h2></div><span className="text-xs text-muted-foreground">Only active offers appear on the website.</span></div><form onSubmit={createOffer} className="mt-6 grid gap-3 border border-border bg-background p-4 md:grid-cols-[1fr_1fr_auto]"><input value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="Offer headline" className="border border-input px-3 py-2 text-sm" /><label className="cursor-pointer border border-dashed border-input px-3 py-2 text-sm text-muted-foreground">{imageUrl ? "Offer image prepared (WebP)" : "Upload offer image"}<input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) setOfferCrop(file); }} /></label><button disabled={saving} className="bg-foreground px-4 py-2 text-[.65rem] uppercase tracking-[.14em] text-background">Create offer</button></form><div className="mt-4 space-y-2">{isLoading ? <div className="h-14 animate-pulse bg-muted" /> : offers.length ? offers.map((offer) => <div key={offer.id} className="flex items-center justify-between gap-3 border border-border bg-background p-3"><p className="min-w-0 truncate text-sm">{offer.headline}</p><div className="flex gap-2"><button onClick={() => toggle(offer)} className="border border-border px-3 py-1.5 text-[.6rem] uppercase tracking-wider">{offer.active ? "Deactivate" : "Activate"}</button><button onClick={() => remove(offer)} className="border border-destructive/40 px-3 py-1.5 text-[.6rem] uppercase tracking-wider text-destructive">Delete</button></div></div>) : <p className="text-sm text-muted-foreground">No offers created.</p>}</div>{offerCrop ? <ImageCropDialog file={offerCrop} onCancel={() => setOfferCrop(null)} onComplete={(file) => { void uploadOffer(file); setOfferCrop(null); }} /> : null}</section>;
 }

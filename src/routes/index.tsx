@@ -4,6 +4,8 @@ import { ArrowRight, MapPin, MessageCircle, Phone, Star } from "lucide-react";
 import { Footer } from "@/components/site/Footer";
 import { Header } from "@/components/site/Header";
 import { FurnitureSilhouette } from "@/components/site/FurnitureSilhouette";
+import { FloatingOfferButton, OfferSection } from "@/components/site/OfferSection";
+import { WeddingSection } from "@/components/site/WeddingSection";
 import { BUSINESS, mapsUrl, telUrl, whatsappUrl } from "@/lib/business";
 import {
   designerBed,
@@ -20,17 +22,17 @@ import { CATEGORIES } from "@/lib/products";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "HI LINE COMFORTS — Furniture Showroom in Telangana" },
+      { title: "Maleka Furnitures — Furniture Showroom in Moghalpura, Hyderabad" },
       {
         name: "description",
         content:
-          "HI LINE COMFORTS, Secundrabad, Telangana. Sofas, beds, dining sets, wardrobes and showcases on display. Visit the showroom or enquire on WhatsApp.",
+          "Maleka Furnitures in Moghalpura, Hyderabad. Sofas, beds, dining sets, wedding packages and storage furniture. Established 2003.",
       },
-      { property: "og:title", content: "HI LINE COMFORTS — Showroom in Telangana" },
+      { property: "og:title", content: "Maleka Furnitures — Hyderabad" },
       {
         property: "og:description",
         content:
-          "A curated furniture showroom in Secundrabad, Telangana. Browse the collection and enquire directly.",
+          "A trusted Moghalpura furniture showroom. Browse the collection and enquire directly.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -52,7 +54,7 @@ function Home() {
             muted
             loop
             playsInline
-            aria-label="HI LINE COMFORTS showroom"
+            aria-label="MALEKA FURNITURES"
             className="h-full w-full object-cover object-[60%_center] md:object-center"
           >
             <source src={heroVideo} type="video/mp4" />
@@ -61,7 +63,7 @@ function Home() {
           <div className="absolute inset-x-0 bottom-0">
             <div className="mx-auto max-w-7xl px-5 pb-12 md:px-8 md:pb-16">
               <p className="eyebrow text-ink-foreground/70">
-                Secundrabad · Telangana
+                Hyderabad · Telangana
               </p>
               <h1 className="mt-4 max-w-3xl font-display text-[2.7rem] leading-[1.05] text-ink-foreground sm:text-6xl md:text-7xl">
                 Furniture worth
@@ -94,12 +96,14 @@ function Home() {
                   <Star className="size-3.5 fill-current" /> {BUSINESS.rating} rating
                 </span>
                 <span>Custom sizes & finishes</span>
-                <span>Delivery across Telangana</span>
+                <span>{BUSINESS.reviewCount} Google reviews</span>
               </div>
             </div>
           </div>
         </div>
       </section>
+
+      <OfferSection />
 
       {/* Category selector */}
       <section className="border-b border-border/70 bg-sand/60">
@@ -203,13 +207,15 @@ function Home() {
         </div>
       </section>
 
+      <WeddingSection />
+
       {/* Showroom strip */}
       <section className="bg-ink text-ink-foreground">
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-5 py-16 md:grid-cols-2 md:px-8 md:py-24">
           <div className="overflow-hidden">
             <img
               src={storefront}
-              alt="Sectional sofa with ottoman displayed at HI LINE COMFORTS"
+              alt="Sectional sofa with ottoman displayed at MALEKA FURNITURES"
               loading="lazy"
               className="aspect-[4/3] w-full object-cover"
             />
@@ -220,7 +226,7 @@ function Home() {
               Seen in person, chosen with certainty
             </h2>
             <p className="mt-5 text-sm leading-relaxed text-ink-foreground/70">
-              Everything on this site sits on our floor in Secundrabad. Sit
+              Everything on this site sits on our floor in Hyderabad. Sit
               on the sofa, open the wardrobe, check the marble. Tell us the size
               and finish you need and we'll make it work for your room.
             </p>
@@ -275,10 +281,10 @@ function Home() {
           </div>
           <div className="min-h-[260px] overflow-hidden bg-muted">
             <iframe
-              title="HI LINE COMFORTS location map"
+              title="Maleka Furnitures location map"
               src={`https://maps.google.com/maps?q=${encodeURIComponent(
                 `${BUSINESS.name}, ${BUSINESS.address}`,
-              )}&output=embed`}
+              )}&t=k&z=18&output=embed`}
               loading="lazy"
               className="h-full min-h-[260px] w-full border-0"
             />
@@ -287,6 +293,7 @@ function Home() {
       </section>
 
       <Footer />
+      <FloatingOfferButton />
     </div>
   );
 }

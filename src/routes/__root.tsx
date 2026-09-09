@@ -78,18 +78,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "HI LINE COMFORTS — Furniture Showroom in Telangana" },
+      { title: "Maleka Furnitures — Moghalpura, Hyderabad" },
       {
         name: "description",
         content:
-          "HI LINE COMFORTS, Secundrabad, Telangana. Sofas, beds, dining sets, wardrobes and showcases on display.",
+          "Maleka Furnitures, Moghalpura, Hyderabad. Sofas, beds, dining sets, wedding furniture and storage.",
       },
-      { name: "author", content: "HI LINE COMFORTS" },
-      { property: "og:title", content: "HI LINE COMFORTS — Showroom in Telangana" },
+      { name: "author", content: "Maleka Furnitures" },
+      { property: "og:title", content: "Maleka Furnitures — Hyderabad" },
       {
         property: "og:description",
         content:
-          "A curated furniture showroom in Secundrabad, Telangana. Browse the collection and enquire directly.",
+          "A trusted furniture showroom in Moghalpura, Hyderabad. Browse the collection and enquire directly.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

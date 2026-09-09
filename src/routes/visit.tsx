@@ -15,17 +15,17 @@ import {
 export const Route = createFileRoute("/visit")({
   head: () => ({
     meta: [
-      { title: "Visit the Showroom — HI LINE COMFORTS, Telangana" },
+      { title: "Visit Maleka Furnitures — Moghalpura, Hyderabad" },
       {
         name: "description",
         content:
-          "Find HI LINE COMFORTS at Secundrabad, Telangana. Directions, phone number and WhatsApp enquiries for our furniture showroom.",
+          "Find Maleka Furnitures at Sultan Shahi Road, Moghalpura, Hyderabad. Directions, phone number and WhatsApp enquiries.",
       },
-      { property: "og:title", content: "Visit HI LINE COMFORTS in Telangana" },
+      { property: "og:title", content: "Visit Maleka Furnitures in Hyderabad" },
       {
         property: "og:description",
         content:
-          "Directions and contact details for the HI LINE COMFORTS showroom in Secundrabad, Telangana.",
+          "Directions and contact details for Maleka Furnitures in Moghalpura, Hyderabad.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -42,14 +42,14 @@ function Visit() {
       <section className="relative h-[46vh] min-h-[320px] overflow-hidden">
         <img
           src={storefront}
-          alt="HI LINE COMFORTS showroom frontage at dusk"
+            alt="Maleka Furnitures showroom"
           className="h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/50 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 mx-auto max-w-7xl px-5 pb-10 md:px-8">
           <p className="eyebrow text-ink-foreground/70">Find us</p>
           <h1 className="mt-3 font-display text-4xl text-ink-foreground md:text-6xl">
-            Secundrabad, Telangana
+            Moghalpura, Hyderabad
           </h1>
         </div>
       </section>
@@ -89,10 +89,9 @@ function Visit() {
             <li className="flex gap-3">
               <Clock className="mt-0.5 size-4 shrink-0 text-gold" />
               <div>
-                <p className="eyebrow">Best time to visit</p>
+                <p className="eyebrow">Opening hours</p>
                 <p className="mt-1 text-muted-foreground">
-                  Call ahead and we'll keep the pieces you're interested in
-                  ready to view.
+                  {BUSINESS.hours}
                 </p>
               </div>
             </li>
@@ -130,7 +129,7 @@ function Visit() {
 
         <div className="min-h-[420px] overflow-hidden bg-muted">
           <iframe
-            title="Map to HI LINE COMFORTS, Secundrabad"
+            title="Map to Maleka Furnitures, Moghalpura"
             src={mapsEmbedUrl}
             loading="lazy"
             className="h-full min-h-[420px] w-full border-0"

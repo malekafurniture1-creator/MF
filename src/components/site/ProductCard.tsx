@@ -1,4 +1,5 @@
 import { MessageCircle, Phone } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 import type { ProductWithImage } from "@/lib/products";
 import { productEnquiryUrl, telUrl } from "@/lib/business";
@@ -39,7 +40,7 @@ export function ProductCard({ product, className, ratio = "square", priority }: 
 
       <div className="flex flex-1 flex-col pt-4">
         <p className="eyebrow">{product.category}</p>
-        <h3 className="mt-1.5 font-display text-2xl leading-snug">{product.name}</h3>
+        <Link to="/product/$id" params={{ id: product.id }} className="mt-1.5 font-display text-2xl leading-snug hover:text-gold">{product.name}</Link>
         {product.description ? (
           <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
             {product.description}

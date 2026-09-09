@@ -9,14 +9,10 @@ export function Footer() {
     <footer className="bg-ink text-ink-foreground">
       <div className="mx-auto grid max-w-7xl gap-10 px-5 py-14 md:grid-cols-3 md:px-8">
         <div>
-          <img
-            src={logo}
-            alt="HI LINE COMFORTS logo"
-            className="h-14 w-14 rounded-full object-cover ring-1 ring-gold/40"
-          />
+          <img src={logo} alt="Maleka Furnitures logo" className="h-14 w-14 rounded-full object-cover" />
           <p className="mt-5 max-w-xs text-sm leading-relaxed text-ink-foreground/70">
-            A furniture showroom in Secundrabad, Telangana — sofas, beds,
-            dining, wardrobes and showcase pieces, finished to order.
+            Hyderabad furniture specialists since 2003 — sofas, beds, dining,
+            wardrobes and made-to-order pieces.
           </p>
           <p className="mt-4 flex items-center gap-2 text-sm text-gold">
             <Star className="size-4 fill-current" />
@@ -42,6 +38,7 @@ export function Footer() {
             <Phone className="size-4 shrink-0" />
             {BUSINESS.phoneDisplay}
           </a>
+          <a href={`tel:${BUSINESS.alternatePhone}`} className="flex items-center gap-2 text-ink-foreground/80 transition-colors hover:text-gold"><Phone className="size-4 shrink-0" />+91 89853 14344</a>
           <a
             href={whatsappUrl()}
             target="_blank"
@@ -69,7 +66,7 @@ export function Footer() {
 
       <div className="border-t border-white/10">
         <p className="mx-auto max-w-7xl px-5 py-5 text-xs text-ink-foreground/40 md:px-8">
-          © {new Date().getFullYear()} HI LINE COMFORTS, Telangana. Display
+          © {new Date().getFullYear()} Maleka Furnitures, Hyderabad. Display
           pieces only — no online purchase.
         </p>
       </div>

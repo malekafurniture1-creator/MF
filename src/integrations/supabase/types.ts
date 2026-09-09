@@ -24,7 +24,9 @@ export type Database = {
           image_url: string
           name: string
           sort_order: number
+          tags: string[]
           updated_at: string
+          visible: boolean
         }
         Insert: {
           category: string
@@ -35,7 +37,9 @@ export type Database = {
           image_url: string
           name: string
           sort_order?: number
+          tags?: string[]
           updated_at?: string
+          visible?: boolean
         }
         Update: {
           category?: string
@@ -46,7 +50,9 @@ export type Database = {
           image_url?: string
           name?: string
           sort_order?: number
+          tags?: string[]
           updated_at?: string
+          visible?: boolean
         }
         Relationships: []
       }

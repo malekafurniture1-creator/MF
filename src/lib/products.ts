@@ -8,6 +8,8 @@ export type Product = {
   description: string | null;
   image_url: string;
   featured: boolean;
+  visible: boolean;
+  tags: string[];
   sort_order: number;
   created_at: string;
 };
@@ -24,6 +26,8 @@ export const CATEGORIES = [
   "Mirrors",
   "Study/Office",
   "Commercial",
+  "Wedding Sets",
+  "Shoe Racks & Storage",
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];
@@ -64,6 +68,8 @@ export async function fetchProducts(): Promise<ProductWithImage[]> {
   const { data, error } = await supabase
     .from("products")
     .select("*")
+    .eq("visible", true)
+    .order("featured", { ascending: false })
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false });
 

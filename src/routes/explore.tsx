@@ -19,17 +19,17 @@ export const Route = createFileRoute("/explore")({
       : {},
   head: () => ({
     meta: [
-      { title: "Explore the Collection — HI LINE COMFORTS Telangana" },
+      { title: "Explore the Collection — Maleka Furnitures Hyderabad" },
       {
         name: "description",
         content:
-          "Browse sofas, beds, dining sets, wardrobes and showcases on display at HI LINE COMFORTS in Secundrabad, Telangana. Filter by category and enquire.",
+          "Browse sofas, beds, dining sets, wedding sets and storage at Maleka Furnitures in Moghalpura, Hyderabad.",
       },
-      { property: "og:title", content: "Explore the Collection — HI LINE COMFORTS" },
+      { property: "og:title", content: "Explore the Collection — Maleka Furnitures" },
       {
         property: "og:description",
         content:
-          "The full HI LINE COMFORTS catalogue, filterable by category, with direct enquiry.",
+          "The full Maleka Furnitures catalogue, filterable by category, with direct enquiry.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -68,7 +68,7 @@ function Explore() {
           </h1>
           <p className="mt-5 max-w-lg text-sm leading-relaxed text-muted-foreground">
             Pick a category, then send an enquiry for pricing, sizes and finish
-            options. Nothing is sold online — we quote per piece.
+            options. we quote per piece.
           </p>
         </div>
       </section>
