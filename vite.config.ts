@@ -13,7 +13,7 @@ function b2UploadDevPlugin(): Plugin {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const parsedUrl = new URL(req.url || "", `http://${req.headers.host || "localhost"}`);
-        if (parsedUrl.pathname === "/api/b2-upload") {
+        if (parsedUrl.pathname === "/api/b2-upload" || parsedUrl.pathname === "/api/b2-delete") {
           try {
             const protocol = req.headers["x-forwarded-proto"] || "http";
             const fullUrl = `${protocol}://${req.headers.host}${req.url}`;
@@ -43,8 +43,11 @@ function b2UploadDevPlugin(): Plugin {
               duplex: "half",
             });
 
-            const { handleB2UploadRequest } = await import("./src/lib/b2.ts");
-            const response = await handleB2UploadRequest(standardRequest);
+            const { handleB2UploadRequest, handleB2DeleteRequest } = await import("./src/lib/b2.ts");
+            const response =
+              parsedUrl.pathname === "/api/b2-delete"
+                ? await handleB2DeleteRequest(standardRequest)
+                : await handleB2UploadRequest(standardRequest);
 
             res.statusCode = response.status;
             response.headers.forEach((val, key) => {
@@ -53,7 +56,7 @@ function b2UploadDevPlugin(): Plugin {
             const resBuffer = await response.arrayBuffer();
             res.end(Buffer.from(resBuffer));
           } catch (err: any) {
-            console.error("Dev upload middleware error:", err);
+            console.error("Dev b2 middleware error:", err);
             res.statusCode = 500;
             res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify({ error: err?.message || "Internal server error" }));

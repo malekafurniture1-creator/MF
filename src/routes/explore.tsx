@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Footer } from "@/components/site/Footer";
 import { Header } from "@/components/site/Header";
@@ -55,6 +55,16 @@ function Explore() {
   const filtered = category
     ? products.filter((p) => p.category === category)
     : products;
+
+  const [visibleCount, setVisibleCount] = useState(24);
+
+  // Reset visibleCount when category filter changes
+  useEffect(() => {
+    setVisibleCount(24);
+  }, [category]);
+
+  const displayedProducts = filtered.slice(0, visibleCount);
+  const hasMore = filtered.length > visibleCount;
 
   return (
     <div className="min-h-screen bg-background">
@@ -130,12 +140,15 @@ function Explore() {
           </div>
         ) : (
           <>
-            <p className="eyebrow mb-8">
-              {filtered.length} {filtered.length === 1 ? "piece" : "pieces"}
-              {category ? ` · ${category}` : ""}
-            </p>
+            <div className="mb-8 flex items-center justify-between">
+              <p className="eyebrow">
+                Showing {displayedProducts.length} of {filtered.length}{" "}
+                {filtered.length === 1 ? "piece" : "pieces"}
+                {category ? ` · ${category}` : ""}
+              </p>
+            </div>
             <div className="grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((product, i) => (
+              {displayedProducts.map((product, i) => (
                 <ProductCard
                   key={product.id}
                   product={product}
@@ -143,6 +156,18 @@ function Explore() {
                 />
               ))}
             </div>
+
+            {hasMore ? (
+              <div className="mt-16 flex flex-col items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((prev) => prev + 24)}
+                  className="border border-foreground bg-transparent px-8 py-3.5 text-[0.7rem] uppercase tracking-[0.2em] text-foreground transition-colors hover:bg-foreground hover:text-background"
+                >
+                  Load More ({filtered.length - displayedProducts.length} remaining)
+                </button>
+              </div>
+            ) : null}
           </>
         )}
       </section>

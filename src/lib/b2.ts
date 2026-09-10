@@ -41,9 +41,23 @@ export function proxyUrl(key: string): string {
  * Generate a collision-safe object key.
  */
 export function makeObjectKey(prefix: string, filename: string): string {
-  const random = crypto.randomUUID();
-  const safeName = filename.replace(/[^\w.-]/g, "_");
-  return `${prefix}${random}-${safeName}`;
+  const random = crypto.randomUUID().slice(0, 8);
+  const cleanExt = filename.includes(".") ? filename.split(".").pop() || "webp" : "webp";
+  const safeName = filename.replace(/\.[^.]+$/, "").replace(/[^\w.-]/g, "_").slice(0, 30);
+  const cleanPrefix = prefix.endsWith("/") ? prefix : `${prefix}/`;
+  return `${cleanPrefix}${safeName ? `${safeName}-` : ""}${random}.${cleanExt}`;
+}
+
+export function extractB2Key(urlOrKey: string): string | null {
+  if (!urlOrKey) return null;
+  if (!urlOrKey.startsWith("http://") && !urlOrKey.startsWith("https://")) {
+    return urlOrKey;
+  }
+  const proxyMarker = "/images/";
+  if (urlOrKey.includes(proxyMarker)) {
+    return urlOrKey.split(proxyMarker)[1] || null;
+  }
+  return null;
 }
 
 let cachedAuth: {
@@ -314,20 +328,24 @@ export async function handleB2UploadRequest(request: Request): Promise<Response>
       return jsonResponse({ error: "No file provided" }, 400);
     }
 
-    if (file.type && file.type !== "image/webp" && !file.name.toLowerCase().endsWith(".webp")) {
-      return jsonResponse({ error: "Only WebP images are allowed" }, 400);
+    const mimeType = file.type || "image/webp";
+    const allowedTypes = ["image/webp", "image/jpeg", "image/png", "image/avif", "image/svg+xml"];
+    const isAllowed = allowedTypes.includes(mimeType) || /\.(webp|jpg|jpeg|png|avif|svg)$/i.test(file.name);
+    if (!isAllowed) {
+      return jsonResponse({ error: "Only image files (WebP, JPEG, PNG, AVIF) are allowed" }, 400);
     }
 
-    const maxSizeBytes = 2 * 1024 * 1024; // 2MB
+    const maxSizeBytes = 3 * 1024 * 1024; // 3MB
     if (file.size > maxSizeBytes) {
-      return jsonResponse({ error: "File size exceeds 2MB limit" }, 400);
+      return jsonResponse({ error: "File size exceeds 3MB limit" }, 400);
     }
 
     const buffer = await file.arrayBuffer();
+    const explicitKey = formData.get("key") as string | null;
     const prefix = (formData.get("prefix") as string) || "products/";
-    const key = makeObjectKey(prefix.endsWith("/") ? prefix : `${prefix}/`, file.name || "image.webp");
+    const key = explicitKey || makeObjectKey(prefix, file.name || "image.webp");
 
-    await uploadToB2(key, buffer, "image/webp");
+    await uploadToB2(key, buffer, mimeType);
     const url = proxyUrl(key);
 
     return jsonResponse({
@@ -338,5 +356,93 @@ export async function handleB2UploadRequest(request: Request): Promise<Response>
   } catch (error: any) {
     console.error("Upload handler error:", error);
     return jsonResponse({ error: error?.message || "Upload failed" }, 500);
+  }
+}
+
+/**
+ * Request handler for /api/b2-delete HTTP endpoint.
+ */
+export async function handleB2DeleteRequest(request: Request): Promise<Response> {
+  const jsonResponse = (data: any, status = 200) =>
+    new Response(JSON.stringify(data), {
+      status,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Authorization, Content-Type",
+      },
+    });
+
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Authorization, Content-Type",
+      },
+    });
+  }
+
+  if (request.method !== "POST") {
+    return jsonResponse({ error: "Method Not Allowed" }, 405);
+  }
+
+  try {
+    const authHeader = request.headers.get("Authorization") || request.headers.get("authorization");
+    let token = "";
+    if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+      token = authHeader.slice(7).trim();
+    }
+
+    let body: any = {};
+    const contentType = request.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      body = await request.json().catch(() => ({}));
+    } else if (contentType.includes("multipart/form-data") || contentType.includes("application/x-www-form-urlencoded")) {
+      const formData = await request.formData();
+      body = Object.fromEntries(formData.entries());
+    }
+
+    if (!token && body.authorization) {
+      token = body.authorization;
+    }
+
+    if (!token) {
+      return jsonResponse({ error: "Missing or invalid Authorization header" }, 401);
+    }
+
+    try {
+      await verifyOwner(token);
+    } catch (err: any) {
+      const msg = err?.message || "Forbidden – not an owner";
+      const status = msg.includes("Invalid session token") ? 401 : 403;
+      return jsonResponse({ error: msg }, status);
+    }
+
+    const rawKeys: string[] = [];
+    if (body.key) rawKeys.push(body.key);
+    if (Array.isArray(body.keys)) rawKeys.push(...body.keys);
+    if (body.url) rawKeys.push(body.url);
+    if (Array.isArray(body.urls)) rawKeys.push(...body.urls);
+
+    const keysToDelete = rawKeys
+      .map((k) => extractB2Key(k))
+      .filter((k): k is string => Boolean(k));
+
+    if (keysToDelete.length === 0) {
+      return jsonResponse({ success: true, deleted: 0, message: "No B2 keys to delete" });
+    }
+
+    await Promise.allSettled(keysToDelete.map((k) => deleteFromB2(k)));
+
+    return jsonResponse({
+      success: true,
+      deleted: keysToDelete.length,
+      keys: keysToDelete,
+    });
+  } catch (error: any) {
+    console.error("Delete handler error:", error);
+    return jsonResponse({ error: error?.message || "Delete failed" }, 500);
   }
 }

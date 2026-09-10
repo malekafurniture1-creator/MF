@@ -52,6 +52,10 @@ export default {
         const { handleB2UploadRequest } = await import("./lib/b2");
         return await handleB2UploadRequest(request);
       }
+      if (url.pathname === "/api/b2-delete") {
+        const { handleB2DeleteRequest } = await import("./lib/b2");
+        return await handleB2DeleteRequest(request);
+      }
 
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

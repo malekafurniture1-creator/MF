@@ -243,13 +243,34 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["products"] });
 
+  async function deleteB2Images(urls: string[]) {
+    if (!urls || urls.length === 0) return;
+    try {
+      const token = session?.access_token || "";
+      await fetch("/api/b2-delete", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ urls }),
+      });
+    } catch (e) {
+      console.warn("Failed to delete B2 images:", e);
+    }
+  }
+
   async function upload(file: File) {
     setUploading(true);
     try {
       const token = session?.access_token || "";
       const form = new FormData();
       form.append("file", file);
-      form.append("prefix", "products/");
+      
+      const pos = extraImagePaths.length;
+      const prefix = draft?.id ? `products/${draft.id}/` : "products/";
+      form.append("prefix", prefix);
+      form.append("key", `${prefix}${pos}-${crypto.randomUUID().slice(0, 8)}.webp`);
 
       const resp = await fetch("/api/b2-upload", {
         method: "POST",
@@ -331,8 +352,11 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
   async function remove(product: ProductWithImage) {
     if (!window.confirm(`Delete "${product.name}"?`)) return;
     const { error } = await supabase.from("products").delete().eq("id", product.id);
-    if (error) toast.error(error.message);
-    else {
+    if (error) {
+      toast.error(error.message);
+    } else {
+      const allImages = [product.image_url, ...(product.images || [])].filter(Boolean);
+      void deleteB2Images(allImages);
       toast.success("Deleted");
       refresh();
     }
@@ -775,7 +799,25 @@ function OfferManager({ session }: { session: Session | null }) {
   async function remove(offer: Offer) {
     if (!window.confirm(`Delete "${offer.headline}"?`)) return;
     const { error } = await (supabase as any).from("offers").delete().eq("id", offer.id);
-    if (error) toast.error(error.message); else { queryClient.invalidateQueries({ queryKey: ["owner-offers"] }); queryClient.invalidateQueries({ queryKey: ["active-offers"] }); }
+    if (error) {
+      toast.error(error.message);
+    } else {
+      if (offer.image_url) {
+        try {
+          const token = session?.access_token || "";
+          void fetch("/api/b2-delete", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ urls: [offer.image_url] }),
+          });
+        } catch {}
+      }
+      queryClient.invalidateQueries({ queryKey: ["owner-offers"] });
+      queryClient.invalidateQueries({ queryKey: ["active-offers"] });
+    }
   }
   return (
     <section className="mt-16 border-t border-border pt-10">
