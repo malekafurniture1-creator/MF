@@ -1,0 +1,6 @@
+﻿User-agent: *
+Allow: /
+Disallow: /owner
+
+Sitemap: https://malekafurnitures.com/sitemap.xml
+

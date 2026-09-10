@@ -7,27 +7,35 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "../components/ui/sonner";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-5 py-16 text-center">
+      <div className="max-w-md">
+        <p className="eyebrow text-gold">404 Error</p>
+        <h1 className="mt-3 font-display text-4xl text-foreground md:text-5xl">
+          Page not found
+        </h1>
+        <div className="gold-rule mx-auto my-6 w-20" />
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          The piece or showroom page you are looking for does not exist or has been relocated.
         </p>
-        <div className="mt-6">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <Link
+            to="/explore"
+            className="inline-flex items-center justify-center bg-foreground px-6 py-3 text-[0.72rem] uppercase tracking-[0.18em] text-background hover:bg-foreground/90 transition-colors"
+          >
+            Explore Catalogue
+          </Link>
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center border border-border px-6 py-3 text-[0.72rem] uppercase tracking-[0.18em] text-foreground hover:border-gold transition-colors"
           >
-            Go home
+            Return Home
           </Link>
         </div>
       </div>
@@ -38,35 +46,35 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-5 py-16 text-center">
+      <div className="max-w-md">
+        <p className="eyebrow text-gold">Notice</p>
+        <h1 className="mt-3 font-display text-3xl text-foreground md:text-4xl">
+          Unable to display this page
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+        <div className="gold-rule mx-auto my-6 w-20" />
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Something unexpected occurred while loading this section. Please try refreshing or return to the main catalogue.
         </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <button
+            type="button"
             onClick={() => {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center bg-foreground px-6 py-3 text-[0.72rem] uppercase tracking-[0.18em] text-background hover:bg-foreground/90 transition-colors"
           >
             Try again
           </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          <Link
+            to="/"
+            className="inline-flex items-center justify-center border border-border px-6 py-3 text-[0.72rem] uppercase tracking-[0.18em] text-foreground hover:border-gold transition-colors"
           >
-            Go home
-          </a>
+            Return Home
+          </Link>
         </div>
       </div>
     </div>

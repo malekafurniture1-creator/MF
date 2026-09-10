@@ -31,7 +31,7 @@ export {
   heroPoster,
 };
 
-/** Maps the asset URLs written by Lovable's seed migration to locally bundled files. */
+/** Maps local asset filenames to their bundled asset paths. */
 export const localAssetByFilename: Record<string, string> = {
   "designer-bed.png": designerBed,
   "dining-set.png": diningSet,

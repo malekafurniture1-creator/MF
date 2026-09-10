@@ -9,7 +9,44 @@ import { fetchProduct } from "@/lib/products";
 import { productEnquiryUrl, telUrl } from "@/lib/business";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/product/$id")({ component: ProductDetail });
+export const Route = createFileRoute("/product/$id")({
+  loader: async ({ params: { id } }) => {
+    try {
+      return await fetchProduct(id);
+    } catch {
+      return null;
+    }
+  },
+  head: ({ loaderData }) => {
+    if (!loaderData) {
+      return {
+        meta: [
+          { title: "Piece Unavailable — Maleka Furnitures" },
+          { name: "robots", content: "noindex" },
+        ],
+      };
+    }
+    return {
+      meta: [
+        { title: `${loaderData.name} — Maleka Furnitures` },
+        {
+          name: "description",
+          content: loaderData.description || `Browse the ${loaderData.category} collection at Maleka Furnitures in Moghalpura, Hyderabad.`,
+        },
+        { property: "og:url", content: `https://malekafurnitures.com/product/${loaderData.id}` },
+        { property: "og:title", content: `${loaderData.name} — Maleka Furnitures` },
+        {
+          property: "og:description",
+          content: loaderData.description || `Browse the ${loaderData.category} collection at Maleka Furnitures in Moghalpura, Hyderabad.`,
+        },
+        { property: "og:image", content: loaderData.image },
+        { property: "og:type", content: "website" },
+        { name: "twitter:card", content: "summary_large_image" },
+      ],
+    };
+  },
+  component: ProductDetail,
+});
 
 function ProductGallery({ images, name }: { images: string[]; name: string }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -189,14 +226,21 @@ function ProductDetail() {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="mx-auto max-w-7xl px-5 py-10 md:px-8 md:py-16">
-        <Link
-          to="/explore"
-          search={product ? { category: product.category } : {}}
-          className="inline-flex items-center gap-2 text-[.7rem] uppercase tracking-[.16em] text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="size-3.5" />
-          Back to collection
-        </Link>
+        <nav aria-label="Breadcrumb" className="mb-6 flex flex-wrap items-center gap-2 text-[.7rem] uppercase tracking-[.16em] text-muted-foreground">
+          <Link to="/" className="hover:text-foreground transition-colors">Home</Link>
+          <span className="opacity-50">/</span>
+          <Link to="/explore" className="hover:text-foreground transition-colors">Explore</Link>
+          {product && (
+            <>
+              <span className="opacity-50">/</span>
+              <Link to="/explore" search={{ category: product.category }} className="hover:text-foreground transition-colors">
+                {product.category}
+              </Link>
+              <span className="opacity-50">/</span>
+              <span className="text-foreground line-clamp-1 max-w-[200px] sm:max-w-xs">{product.name}</span>
+            </>
+          )}
+        </nav>
         {isLoading ? (
           <div className="mt-8 aspect-[4/5] max-w-lg animate-pulse bg-muted" />
         ) : !product ? (

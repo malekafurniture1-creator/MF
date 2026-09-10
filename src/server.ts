@@ -56,6 +56,10 @@ export default {
         const { handleB2DeleteRequest } = await import("./lib/b2");
         return await handleB2DeleteRequest(request);
       }
+      if (url.pathname === "/sitemap.xml") {
+        const { handleSitemapRequest } = await import("./lib/sitemap");
+        return await handleSitemapRequest();
+      }
 
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

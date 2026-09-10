@@ -32,6 +32,7 @@ export const Route = createFileRoute("/")({
         content:
           "Maleka Furnitures in Moghalpura, Hyderabad. Sofas, beds, dining sets, wedding packages and storage furniture. Established 2003.",
       },
+      { property: "og:url", content: "https://malekafurnitures.com/" },
       { property: "og:title", content: "Maleka Furnitures — Hyderabad" },
       {
         property: "og:description",
@@ -40,6 +41,43 @@ export const Route = createFileRoute("/")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      {
+        name: "script:ld+json",
+        content: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FurnitureStore",
+          name: "Maleka Furnitures",
+          url: "https://malekafurnitures.com",
+          telephone: "+919391033589",
+          address: {
+            "@type": "PostalAddress",
+            streetAddress: "18-7-198/A/3, Murad Mahal, Sultan Shahi Road",
+            addressLocality: "Moghalpura",
+            addressRegion: "Hyderabad",
+            addressCountry: "IN",
+          },
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: "3.7",
+            reviewCount: "147",
+          },
+          openingHoursSpecification: [
+            {
+              "@type": "OpeningHoursSpecification",
+              dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+              opens: "09:00",
+              closes: "22:00",
+            },
+            {
+              "@type": "OpeningHoursSpecification",
+              dayOfWeek: ["Sunday"],
+              opens: "09:00",
+              closes: "18:00",
+            },
+          ],
+          priceRange: "₹₹",
+        }),
+      },
     ],
   }),
   component: Home,
