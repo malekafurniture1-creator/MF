@@ -67,6 +67,13 @@ let cachedAuth: {
   expiresAt: number;
 } | null = null;
 
+// Cache the B2 upload URL so we don't need a round-trip on every upload
+let cachedUploadUrl: {
+  uploadUrl: string;
+  authorizationToken: string;
+  expiresAt: number;
+} | null = null;
+
 /**
  * Authorize with Backblaze B2 Native API.
  */
@@ -107,6 +114,9 @@ async function getB2Auth() {
     }
   }
 
+  // Invalidate upload URL cache when we re-auth
+  cachedUploadUrl = null;
+
   cachedAuth = {
     apiUrl: storageApi.apiUrl,
     authorizationToken: data.authorizationToken,
@@ -115,6 +125,40 @@ async function getB2Auth() {
   };
 
   return cachedAuth;
+}
+
+/**
+ * Get (and cache) a B2 upload URL. B2 upload URLs can be reused for multiple
+ * uploads to the same bucket within the same session — no need to fetch one
+ * per file.
+ */
+async function getUploadUrl() {
+  const now = Date.now();
+  if (cachedUploadUrl && cachedUploadUrl.expiresAt > now + 30000) {
+    return cachedUploadUrl;
+  }
+
+  const auth = await getB2Auth();
+  const uploadUrlResp = await fetch(`${auth.apiUrl}/b2api/v3/b2_get_upload_url`, {
+    method: "POST",
+    headers: { Authorization: auth.authorizationToken },
+    body: JSON.stringify({ bucketId: auth.bucketId }),
+  });
+
+  if (!uploadUrlResp.ok) {
+    const err = await uploadUrlResp.text();
+    throw new Error(`Failed to get B2 upload URL (${uploadUrlResp.status}): ${err}`);
+  }
+
+  const uploadUrlData = await uploadUrlResp.json();
+  // B2 upload URLs are valid for 24h but can become stale after errors; cache for 1h
+  cachedUploadUrl = {
+    uploadUrl: uploadUrlData.uploadUrl,
+    authorizationToken: uploadUrlData.authorizationToken,
+    expiresAt: now + 60 * 60 * 1000,
+  };
+
+  return cachedUploadUrl;
 }
 
 /**
@@ -135,28 +179,15 @@ export async function uploadToB2(
   data: ArrayBuffer,
   contentType = "image/webp",
 ): Promise<string> {
-  const auth = await getB2Auth();
-
-  // Get upload URL
-  const uploadUrlResp = await fetch(`${auth.apiUrl}/b2api/v3/b2_get_upload_url`, {
-    method: "POST",
-    headers: { Authorization: auth.authorizationToken },
-    body: JSON.stringify({ bucketId: auth.bucketId }),
-  });
-
-  if (!uploadUrlResp.ok) {
-    const err = await uploadUrlResp.text();
-    throw new Error(`Failed to get B2 upload URL (${uploadUrlResp.status}): ${err}`);
-  }
-
-  const uploadUrlData = await uploadUrlResp.json();
+  // Get cached upload URL (avoids a round-trip on warm requests)
+  let uploadInfo = await getUploadUrl();
   const sha1 = await computeSha1(data);
 
-  // Upload file
-  const uploadResp = await fetch(uploadUrlData.uploadUrl, {
+  // Upload file — if the cached URL has expired/errored, invalidate and retry once
+  let uploadResp = await fetch(uploadInfo.uploadUrl, {
     method: "POST",
     headers: {
-      Authorization: uploadUrlData.authorizationToken,
+      Authorization: uploadInfo.authorizationToken,
       "X-Bz-File-Name": encodeURIComponent(key),
       "Content-Type": contentType,
       "Content-Length": String(data.byteLength),
@@ -164,6 +195,23 @@ export async function uploadToB2(
     },
     body: data,
   });
+
+  // B2 returns 401/503 when an upload URL is stale — refresh and retry once
+  if (!uploadResp.ok && (uploadResp.status === 401 || uploadResp.status === 503)) {
+    cachedUploadUrl = null;
+    uploadInfo = await getUploadUrl();
+    uploadResp = await fetch(uploadInfo.uploadUrl, {
+      method: "POST",
+      headers: {
+        Authorization: uploadInfo.authorizationToken,
+        "X-Bz-File-Name": encodeURIComponent(key),
+        "Content-Type": contentType,
+        "Content-Length": String(data.byteLength),
+        "X-Bz-Content-Sha1": sha1,
+      },
+      body: data,
+    });
+  }
 
   if (!uploadResp.ok) {
     const err = await uploadResp.text();
@@ -207,10 +255,19 @@ export async function deleteFromB2(key: string): Promise<void> {
   }
 }
 
+// Short-lived cache for verified owner tokens (avoids 2 Supabase RTTs per upload)
+const ownerTokenCache = new Map<string, { userId: string; expiresAt: number }>();
+
 /**
  * Verify owner identity and role from a Supabase JWT.
  */
 export async function verifyOwner(token: string): Promise<{ userId: string }> {
+  const now = Date.now();
+  const cached = ownerTokenCache.get(token);
+  if (cached && cached.expiresAt > now) {
+    return { userId: cached.userId };
+  }
+
   const supabaseUrl = SUPABASE_URL();
   const publishableKey = SUPABASE_PUBLISHABLE_KEY();
 
@@ -244,6 +301,7 @@ export async function verifyOwner(token: string): Promise<{ userId: string }> {
     .maybeSingle();
 
   if (roleData?.role === "owner") {
+    ownerTokenCache.set(token, { userId, expiresAt: Date.now() + 5 * 60 * 1000 });
     return { userId };
   }
 
@@ -254,6 +312,7 @@ export async function verifyOwner(token: string): Promise<{ userId: string }> {
   });
 
   if (hasRoleData === true) {
+    ownerTokenCache.set(token, { userId, expiresAt: Date.now() + 5 * 60 * 1000 });
     return { userId };
   }
 
@@ -314,14 +373,12 @@ export async function handleB2UploadRequest(request: Request): Promise<Response>
       return jsonResponse({ error: "Missing or invalid Authorization header" }, 401);
     }
 
-    // Verify JWT and owner role
-    try {
-      await verifyOwner(token);
-    } catch (err: any) {
-      const msg = err?.message || "Forbidden – not an owner";
-      const status = msg.includes("Invalid session token") ? 401 : 403;
-      return jsonResponse({ error: msg }, status);
-    }
+    // Run owner verification and upload‑URL fetch in parallel – they are independent
+    const [_, uploadInfo] = await Promise.all([
+      verifyOwner(token),
+      getUploadUrl(),
+    ]);
+    // `uploadInfo` now holds a cached upload URL; if the cache is empty `getUploadUrl` will fetch it
 
     const file = (formData.get("file") || formData.get("image")) as File | null;
     if (!file) {
