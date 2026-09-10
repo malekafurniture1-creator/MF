@@ -6,6 +6,8 @@ import rockingChair from "@/assets/Rocking chair.png";
 import sectionalSofa from "@/assets/sectional-sofa.png";
 import showcaseCabinet from "@/assets/showcase-cabinet.webp";
 import storefront from "@/assets/storefront.png";
+import weddingSet1 from "@/assets/Wedding_set_1.png";
+import weddingSet2 from "@/assets/Wedding_set_2.png";
 import heroVideo from "@/assets/Video Project.mp4";
 
 export {
@@ -17,6 +19,8 @@ export {
   sectionalSofa,
   showcaseCabinet,
   storefront,
+  weddingSet1,
+  weddingSet2,
   heroVideo,
 };
 
