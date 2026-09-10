@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
-import { Loader2, LogOut, Pencil, Plus, Star, Trash2, Upload } from "lucide-react";
+import { Loader2, LogOut, Pencil, Plus, Star, Trash2, Upload, Camera, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Header } from "@/components/site/Header";
@@ -439,37 +439,135 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
               />
             </div>
 
-            <div>
-              <label className="eyebrow" htmlFor="p-photo">
-                Photo
-              </label>
-              <label
-                htmlFor="p-photo"
-                className="mt-2 flex cursor-pointer items-center gap-2 border border-dashed border-input px-3 py-2.5 text-sm text-muted-foreground hover:border-gold"
-              >
-                {uploading ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Upload className="size-4" />
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="eyebrow">Images ({extraImagePaths.length} / 4)</label>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {extraImagePaths.map((url, i) => (
+                  <div
+                    key={url}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("text/plain", i.toString());
+                    }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const fromIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
+                      if (isNaN(fromIdx) || fromIdx === i) return;
+                      const next = [...extraImagePaths];
+                      const [moved] = next.splice(fromIdx, 1);
+                      next.splice(i, 0, moved);
+                      setExtraImagePaths(next);
+                      setDraft((d) => (d ? { ...d, image_url: next[0] } : d));
+                    }}
+                    className="relative group w-[100px] h-[125px] bg-muted overflow-hidden border border-border"
+                  >
+                    <img src={url} className="w-full h-full object-cover pointer-events-none" alt="" />
+                    {i === 0 && (
+                      <div className="absolute top-0 left-0 bg-gold text-[0.55rem] uppercase px-1 py-0.5 text-black font-bold">
+                        Primary
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = extraImagePaths.filter((_, idx) => idx !== i);
+                        setExtraImagePaths(next);
+                        setDraft((d) => (d ? { ...d, image_url: next[0] || "" } : d));
+                      }}
+                      className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="size-3" />
+                    </button>
+                    <div className="absolute bottom-0 w-full flex justify-between bg-black/40 p-1 md:hidden">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (i > 0) {
+                            const next = [...extraImagePaths];
+                            [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                            setExtraImagePaths(next);
+                            setDraft((d) => (d ? { ...d, image_url: next[0] } : d));
+                          }
+                        }}
+                      >
+                        <ChevronLeft className="size-4 text-white" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const next = extraImagePaths.filter((_, idx) => idx !== i);
+                          setExtraImagePaths(next);
+                          setDraft((d) => (d ? { ...d, image_url: next[0] || "" } : d));
+                        }}
+                      >
+                        <Trash2 className="size-4 text-red-400" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (i < extraImagePaths.length - 1) {
+                            const next = [...extraImagePaths];
+                            [next[i], next[i + 1]] = [next[i + 1], next[i]];
+                            setExtraImagePaths(next);
+                            setDraft((d) => (d ? { ...d, image_url: next[0] } : d));
+                          }
+                        }}
+                      >
+                        <ChevronRight className="size-4 text-white" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {extraImagePaths.length < 4 && (
+                  <div className="flex gap-2">
+                    {uploading ? (
+                      <div className="flex items-center justify-center w-[100px] h-[125px] border border-dashed border-input text-muted-foreground">
+                        <Loader2 className="size-5 animate-spin" />
+                      </div>
+                    ) : (
+                      <>
+                        <label className="flex flex-col items-center justify-center w-[100px] h-[125px] border border-dashed border-input text-muted-foreground hover:border-gold cursor-pointer transition-colors p-2 text-center">
+                          <Camera className="size-5 mb-2" />
+                          <span className="text-[0.6rem] uppercase">Take Photo</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files ?? []).slice(0, 4 - extraImagePaths.length);
+                              if (files.length) setCropQueue((q) => [...q, ...files]);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                        <label className="flex flex-col items-center justify-center w-[100px] h-[125px] border border-dashed border-input text-muted-foreground hover:border-gold cursor-pointer transition-colors p-2 text-center">
+                          <Upload className="size-5 mb-2" />
+                          <span className="text-[0.6rem] uppercase">Upload</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files ?? []).slice(0, 4 - extraImagePaths.length);
+                              if (files.length) setCropQueue((q) => [...q, ...files]);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                      </>
+                    )}
+                  </div>
                 )}
-                {draft.image_url ? "Add or replace photos" : "Add up to 4 photos"}
-              </label>
-              <input
-                id="p-photo"
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  const files = Array.from(e.target.files ?? []).slice(0, 4);
-                  if (files.length) setCropQueue(files);
-                }}
-              />
-              {draft.image_url ? (
-                <p className="mt-2 truncate text-xs text-muted-foreground">
-                  {extraImagePaths.length || 1} image{(extraImagePaths.length || 1) === 1 ? "" : "s"} prepared · WebP
-                </p>
-              ) : null}
+              </div>
             </div>
 
             <div className="flex items-end gap-6">
@@ -709,14 +807,14 @@ function OfferManager({ session }: { session: Session | null }) {
           className="border border-input px-3 py-2 text-sm"
         />
         <label className="cursor-pointer border border-dashed border-input px-3 py-2 text-sm text-muted-foreground flex items-center justify-center sm:col-span-2 lg:col-span-3">
-          {imageUrl ? "Offer image prepared (WebP)" : "Upload offer image"}
+          {imageUrl ? "Offer image prepared" : "Upload offer image"}
           <input
             type="file"
             accept="image/*"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) setOfferCrop(file);
+              if (file) void uploadOffer(file);
             }}
           />
         </label>
@@ -765,16 +863,6 @@ function OfferManager({ session }: { session: Session | null }) {
           <p className="text-sm text-muted-foreground">No offers created.</p>
         )}
       </div>
-      {offerCrop ? (
-        <ImageCropDialog
-          file={offerCrop}
-          onCancel={() => setOfferCrop(null)}
-          onComplete={(file) => {
-            void uploadOffer(file);
-            setOfferCrop(null);
-          }}
-        />
-      ) : null}
     </section>
   );
 }
