@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { MessageCircle } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import offerBadge from "@/assets/offer.webp";
 
 import { fetchActiveOffers, offerEnquiryUrl } from "@/lib/offers";
 import { cn } from "@/lib/utils";
@@ -160,9 +161,18 @@ export function FloatingOfferButton() {
   return (
     <a
       href="#offers"
-      className="fixed bottom-20 right-5 z-40 bg-gold px-4 py-3 text-[0.65rem] uppercase tracking-[0.16em] text-foreground shadow-lg transition-transform hover:-translate-y-1"
+      className="fixed bottom-20 right-5 z-40 flex flex-col items-center gap-1 opacity-90 transition-all duration-300 hover:-translate-y-0.5 hover:opacity-100"
     >
-      View offer
+      <img
+        src={offerBadge}
+        alt="View offer"
+        className="w-[54px] md:w-[62px] lg:w-[70px] drop-shadow-lg"
+        style={{ background: "transparent" }}
+      />
+      <span className="text-[0.55rem] uppercase tracking-[0.2em] text-gold drop-shadow-sm">
+        VIEW OFFER
+      </span>
     </a>
   );
 }
+

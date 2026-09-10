@@ -47,14 +47,30 @@ function Explore() {
     queryFn: fetchProducts,
   });
 
+  const hiddenCategories: string[] = useMemo(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("maleka_hidden_categories");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {}
+      }
+    }
+    return [];
+  }, []);
+
   const categories = useMemo(
-    () => Array.from(new Set(products.map((p) => p.category))).sort(),
-    [products],
+    () =>
+      Array.from(new Set(products.map((p) => p.category)))
+        .filter((c) => !hiddenCategories.includes(c))
+        .sort(),
+    [products, hiddenCategories],
   );
 
-  const filtered = category
-    ? products.filter((p) => p.category === category)
-    : products;
+  const filtered = useMemo(() => {
+    const activeProducts = products.filter((p) => !hiddenCategories.includes(p.category));
+    return category ? activeProducts.filter((p) => p.category === category) : activeProducts;
+  }, [products, category, hiddenCategories]);
 
   const [visibleCount, setVisibleCount] = useState(24);
 

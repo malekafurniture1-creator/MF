@@ -138,14 +138,19 @@ export async function withImageUrls(
   });
 }
 
-export async function fetchProducts(): Promise<ProductWithImage[]> {
-  const { data, error } = await supabase
+export async function fetchProducts(options?: { includeHidden?: boolean }): Promise<ProductWithImage[]> {
+  let query = supabase
     .from("products")
     .select("*")
-    .eq("visible", true)
     .order("featured", { ascending: false })
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false });
+
+  if (!options?.includeHidden) {
+    query = query.eq("visible", true);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
   return withImageUrls((data ?? []) as Product[]);
