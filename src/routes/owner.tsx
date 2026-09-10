@@ -228,13 +228,18 @@ function AuthPanel() {
   );
 }
 
+type StagedImage = {
+  file?: File;
+  url: string;
+  isPrimary: boolean;
+};
+
 function Dashboard({ email, session }: { email: string; session: Session | null }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [cropQueue, setCropQueue] = useState<File[]>([]);
-  const [extraImagePaths, setExtraImagePaths] = useState<string[]>([]);
+  const [stagedImages, setStagedImages] = useState<StagedImage[]>([]);
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products"],
@@ -260,81 +265,154 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
     }
   }
 
-  async function upload(file: File) {
-    setUploading(true);
+  const handleStartEdit = async (product: ProductWithImage) => {
+    setDraft({
+      id: product.id,
+      name: product.name,
+      category: product.category,
+      description: product.description ?? "",
+      image_url: product.image_url,
+      featured: product.featured,
+      sort_order: product.sort_order,
+    });
+
+    let dbImages: any[] = [];
     try {
-      const token = session?.access_token || "";
-      const form = new FormData();
-      form.append("file", file);
-      
-      const pos = extraImagePaths.length;
-      const prefix = draft?.id ? `products/${draft.id}/` : "products/";
-      form.append("prefix", prefix);
-      form.append("key", `${prefix}${pos}-${crypto.randomUUID().slice(0, 8)}.webp`);
-
-      const resp = await fetch("/api/b2-upload", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: form,
-      });
-
-      const data = await resp.json();
-      if (!resp.ok) {
-        throw new Error(data?.error || `Upload failed (${resp.status})`);
-      }
-
-      // Store proxy URL in draft and add to extraImagePaths
-      setDraft((d) => (d ? { ...d, image_url: d.image_url || data.url } : d));
-      setExtraImagePaths((paths) => [...paths, data.url]);
-      toast.success("Photo uploaded");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Upload failed");
-    } finally {
-      setUploading(false);
+      const { data } = await (supabase as any)
+        .from("product_images")
+        .select("image_url, is_primary, sort_order")
+        .eq("product_id", product.id)
+        .order("sort_order", { ascending: true });
+      if (data && data.length > 0) dbImages = data;
+    } catch (err) {
+      console.warn("Could not fetch product_images:", err);
     }
-  }
+
+    if (dbImages.length > 0) {
+      setStagedImages(
+        dbImages.map((row: any, idx: number) => ({
+          url: row.image_url,
+          isPrimary: Boolean(row.is_primary ?? idx === 0),
+        }))
+      );
+    } else {
+      const imgs = product.images && product.images.length > 0 ? product.images : [product.image_url];
+      setStagedImages(
+        imgs.map((url, idx) => ({
+          url,
+          isPrimary: idx === 0,
+        }))
+      );
+    }
+  };
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!draft) return;
-    if (!draft.image_url) {
-      toast.error("Add a photo first");
+    if (stagedImages.length === 0) {
+      toast.error("Add at least one photo first");
       return;
     }
     setBusy(true);
+
+    const isNewProduct = !draft.id;
+    let productId = draft.id;
+    const uploadedB2Urls: string[] = [];
+
     try {
       const payload = {
         name: draft.name.trim().slice(0, 120),
         category: draft.category,
         description: draft.description.trim().slice(0, 600) || null,
-        image_url: draft.image_url,
         featured: draft.featured,
-        sort_order: Number(draft.sort_order) || 0,
+        image_url: "",
       };
-      const result = draft.id
-        ? await supabase.from("products").update(payload).eq("id", draft.id).select("id").single()
-        : await supabase.from("products").insert(payload).select("id").single();
-      const { error } = result;
-      if (error) throw error;
-      const productId = result.data?.id ?? draft.id;
-      if (productId && extraImagePaths.length > 0) {
-        await (supabase as any).from("product_images").delete().eq("product_id", productId);
-        await (supabase as any).from("product_images").insert(
-          extraImagePaths.map((image_url, index) => ({
-            product_id: productId,
-            image_url,
-            sort_order: index,
-            is_primary: index === 0,
-          })),
-        );
+
+      if (isNewProduct) {
+        // Step 1: Insert product into Supabase database first to get real ID
+        const { data, error } = await supabase
+          .from("products")
+          .insert(payload)
+          .select("id")
+          .single();
+        if (error || !data?.id) throw error || new Error("Failed to create product record");
+        productId = data.id;
+      } else {
+        const { error } = await supabase
+          .from("products")
+          .update(payload)
+          .eq("id", productId);
+        if (error) throw error;
       }
-      toast.success(draft.id ? "Product updated" : "Product added");
-      setDraft(null); setExtraImagePaths([]);
+
+      // Step 2: Upload staged files using products/<actual-product-id>/<position>-<random-id>.webp
+      const token = session?.access_token || "";
+      const finalImages: Array<{ url: string; isPrimary: boolean }> = [];
+
+      for (let i = 0; i < stagedImages.length; i++) {
+        const item = stagedImages[i];
+        if (item.file) {
+          const form = new FormData();
+          form.append("file", item.file);
+          const prefix = `products/${productId}/`;
+          const key = `${prefix}${i}-${crypto.randomUUID().slice(0, 8)}.webp`;
+          form.append("prefix", prefix);
+          form.append("key", key);
+
+          const resp = await fetch("/api/b2-upload", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: form,
+          });
+
+          const data = await resp.json();
+          if (!resp.ok || !data?.url) {
+            throw new Error(data?.error || `Upload failed for photo ${i + 1}`);
+          }
+          uploadedB2Urls.push(data.url);
+          finalImages.push({ url: data.url, isPrimary: item.isPrimary });
+        } else if (item.url) {
+          finalImages.push({ url: item.url, isPrimary: item.isPrimary });
+        }
+      }
+
+      // Determine primary image
+      let primaryItem = finalImages.find((x) => x.isPrimary) || finalImages[0];
+      if (!primaryItem) throw new Error("No images found");
+      const primaryUrl = primaryItem.url;
+
+      // Update primary image_url on products record
+      const { error: updateErr } = await supabase
+        .from("products")
+        .update({ image_url: primaryUrl })
+        .eq("id", productId);
+      if (updateErr) throw updateErr;
+
+      // Step 3: Insert product_images records with sort_order and is_primary
+      await (supabase as any).from("product_images").delete().eq("product_id", productId);
+      const { error: imgErr } = await (supabase as any).from("product_images").insert(
+        finalImages.map((img, index) => ({
+          product_id: productId,
+          image_url: img.url,
+          sort_order: index,
+          is_primary: img.isPrimary,
+        }))
+      );
+      if (imgErr) throw imgErr;
+
+      toast.success(isNewProduct ? "Product added" : "Product updated");
+      setDraft(null);
+      setStagedImages([]);
       refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save");
+      console.error("Error saving product:", error);
+      if (uploadedB2Urls.length > 0) {
+        void deleteB2Images(uploadedB2Urls);
+      }
+      if (isNewProduct && productId) {
+        await supabase.from("products").delete().eq("id", productId);
+      }
+      toast.error(error instanceof Error ? error.message : "Failed to save product");
     } finally {
       setBusy(false);
     }
@@ -379,7 +457,7 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
             <Link to="/" className="inline-flex items-center border border-border px-4 py-3 text-[0.68rem] uppercase tracking-[0.18em]">Home</Link>
             <button
               type="button"
-              onClick={() => { setExtraImagePaths([]); setDraft({ ...emptyDraft }); }}
+              onClick={() => { setStagedImages([]); setDraft({ ...emptyDraft }); }}
               className="inline-flex items-center gap-2 bg-foreground px-4 py-3 text-[0.68rem] uppercase tracking-[0.18em] text-background"
             >
               <Plus className="size-3.5" />
@@ -402,7 +480,7 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
 
         <div className="mt-8 grid gap-3 sm:grid-cols-3">
           <a href="#products" className="border border-border bg-background p-5 transition-colors hover:border-gold"><p className="eyebrow">Catalogue</p><p className="mt-2 font-display text-2xl">Products</p><p className="mt-1 text-xs text-muted-foreground">Search, edit, feature or hide pieces.</p></a>
-          <button type="button" onClick={() => { setExtraImagePaths([]); setDraft({ ...emptyDraft }); }} className="border border-border bg-background p-5 text-left transition-colors hover:border-gold"><p className="eyebrow">Create</p><p className="mt-2 font-display text-2xl">Add product</p><p className="mt-1 text-xs text-muted-foreground">Up to four cropped WebP images.</p></button>
+          <button type="button" onClick={() => { setStagedImages([]); setDraft({ ...emptyDraft }); }} className="border border-border bg-background p-5 text-left transition-colors hover:border-gold"><p className="eyebrow">Create</p><p className="mt-2 font-display text-2xl">Add product</p><p className="mt-1 text-xs text-muted-foreground">Up to four cropped WebP images.</p></button>
           <a href="#categories" className="border border-border bg-background p-5 transition-colors hover:border-gold"><p className="eyebrow">Organise</p><p className="mt-2 font-display text-2xl">Categories</p><p className="mt-1 text-xs text-muted-foreground">Manage category visibility and order.</p></a>
         </div>
 
@@ -463,14 +541,14 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
               />
             </div>
 
-            <div className="mt-4">
+            <div className="md:col-span-2 mt-2">
               <div className="flex items-center justify-between mb-2">
-                <label className="eyebrow">Images ({extraImagePaths.length} / 4)</label>
+                <label className="eyebrow">Images ({stagedImages.length} / 4)</label>
               </div>
               <div className="flex flex-wrap gap-3">
-                {extraImagePaths.map((url, i) => (
+                {stagedImages.map((imgItem, i) => (
                   <div
-                    key={url}
+                    key={imgItem.url + i}
                     draggable
                     onDragStart={(e) => {
                       e.dataTransfer.setData("text/plain", i.toString());
@@ -480,41 +558,68 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
                       e.preventDefault();
                       const fromIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
                       if (isNaN(fromIdx) || fromIdx === i) return;
-                      const next = [...extraImagePaths];
-                      const [moved] = next.splice(fromIdx, 1);
-                      next.splice(i, 0, moved);
-                      setExtraImagePaths(next);
-                      setDraft((d) => (d ? { ...d, image_url: next[0] } : d));
+                      setStagedImages((prev) => {
+                        const next = [...prev];
+                        const [moved] = next.splice(fromIdx, 1);
+                        next.splice(i, 0, moved);
+                        return next;
+                      });
                     }}
-                    className="relative group w-[100px] h-[125px] bg-muted overflow-hidden border border-border"
+                    className="relative group w-[105px] h-[130px] bg-muted overflow-hidden border border-border"
                   >
-                    <img src={url} className="w-full h-full object-cover pointer-events-none" alt="" />
-                    {i === 0 && (
-                      <div className="absolute top-0 left-0 bg-gold text-[0.55rem] uppercase px-1 py-0.5 text-black font-bold">
-                        Primary
-                      </div>
-                    )}
+                    <img src={imgItem.url} className="w-full h-full object-cover pointer-events-none" alt="" />
+                    
+                    {/* Star Primary Selector */}
                     <button
                       type="button"
+                      title={imgItem.isPrimary ? "Primary photo" : "Set as primary photo"}
                       onClick={() => {
-                        const next = extraImagePaths.filter((_, idx) => idx !== i);
-                        setExtraImagePaths(next);
-                        setDraft((d) => (d ? { ...d, image_url: next[0] || "" } : d));
+                        setStagedImages((prev) =>
+                          prev.map((item, idx) => ({ ...item, isPrimary: idx === i }))
+                        );
                       }}
-                      className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 left-1 bg-black/60 p-1.5 rounded-full hover:bg-black/80 transition-colors z-10"
                     >
-                      <X className="size-3" />
+                      <Star
+                        className={cn(
+                          "size-4 transition-colors",
+                          imgItem.isPrimary
+                            ? "fill-gold text-gold"
+                            : "text-white/80 hover:text-white"
+                        )}
+                      />
                     </button>
-                    <div className="absolute bottom-0 w-full flex justify-between bg-black/40 p-1 md:hidden">
+
+                    {/* Delete button */}
+                    <button
+                      type="button"
+                      title="Remove image"
+                      onClick={() => {
+                        setStagedImages((prev) => {
+                          const next = prev.filter((_, idx) => idx !== i);
+                          if (next.length > 0 && !next.some((x) => x.isPrimary)) {
+                            next[0].isPrimary = true;
+                          }
+                          return next;
+                        });
+                      }}
+                      className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600/80 z-10"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+
+                    {/* Mobile touch reorder bar */}
+                    <div className="absolute bottom-0 w-full flex justify-between bg-black/50 p-1 md:hidden z-10">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.preventDefault();
                           if (i > 0) {
-                            const next = [...extraImagePaths];
-                            [next[i - 1], next[i]] = [next[i], next[i - 1]];
-                            setExtraImagePaths(next);
-                            setDraft((d) => (d ? { ...d, image_url: next[0] } : d));
+                            setStagedImages((prev) => {
+                              const next = [...prev];
+                              [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                              return next;
+                            });
                           }
                         }}
                       >
@@ -524,9 +629,13 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
                         type="button"
                         onClick={(e) => {
                           e.preventDefault();
-                          const next = extraImagePaths.filter((_, idx) => idx !== i);
-                          setExtraImagePaths(next);
-                          setDraft((d) => (d ? { ...d, image_url: next[0] || "" } : d));
+                          setStagedImages((prev) => {
+                            const next = prev.filter((_, idx) => idx !== i);
+                            if (next.length > 0 && !next.some((x) => x.isPrimary)) {
+                              next[0].isPrimary = true;
+                            }
+                            return next;
+                          });
                         }}
                       >
                         <Trash2 className="size-4 text-red-400" />
@@ -535,11 +644,12 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
                         type="button"
                         onClick={(e) => {
                           e.preventDefault();
-                          if (i < extraImagePaths.length - 1) {
-                            const next = [...extraImagePaths];
-                            [next[i], next[i + 1]] = [next[i + 1], next[i]];
-                            setExtraImagePaths(next);
-                            setDraft((d) => (d ? { ...d, image_url: next[0] } : d));
+                          if (i < stagedImages.length - 1) {
+                            setStagedImages((prev) => {
+                              const next = [...prev];
+                              [next[i], next[i + 1]] = [next[i + 1], next[i]];
+                              return next;
+                            });
                           }
                         }}
                       >
@@ -549,89 +659,67 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
                   </div>
                 ))}
 
-                {extraImagePaths.length < 4 && (
+                {stagedImages.length < 4 && (
                   <div className="flex gap-2">
-                    {uploading ? (
-                      <div className="flex items-center justify-center w-[100px] h-[125px] border border-dashed border-input text-muted-foreground">
-                        <Loader2 className="size-5 animate-spin" />
-                      </div>
-                    ) : (
-                      <>
-                        <label className="flex flex-col items-center justify-center w-[100px] h-[125px] border border-dashed border-input text-muted-foreground hover:border-gold cursor-pointer transition-colors p-2 text-center">
-                          <Camera className="size-5 mb-2" />
-                          <span className="text-[0.6rem] uppercase">Take Photo</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            className="hidden"
-                            onChange={(e) => {
-                              const files = Array.from(e.target.files ?? []).slice(0, 4 - extraImagePaths.length);
-                              if (files.length) setCropQueue((q) => [...q, ...files]);
-                              e.target.value = "";
-                            }}
-                          />
-                        </label>
-                        <label className="flex flex-col items-center justify-center w-[100px] h-[125px] border border-dashed border-input text-muted-foreground hover:border-gold cursor-pointer transition-colors p-2 text-center">
-                          <Upload className="size-5 mb-2" />
-                          <span className="text-[0.6rem] uppercase">Upload</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            className="hidden"
-                            onChange={(e) => {
-                              const files = Array.from(e.target.files ?? []).slice(0, 4 - extraImagePaths.length);
-                              if (files.length) setCropQueue((q) => [...q, ...files]);
-                              e.target.value = "";
-                            }}
-                          />
-                        </label>
-                      </>
-                    )}
+                    <label className="flex flex-col items-center justify-center w-[105px] h-[130px] border border-dashed border-input text-muted-foreground hover:border-gold cursor-pointer transition-colors p-2 text-center">
+                      <Camera className="size-5 mb-2 text-gold" />
+                      <span className="text-[0.6rem] uppercase tracking-wider">Take Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files ?? []).slice(0, 4 - stagedImages.length);
+                          if (files.length) setCropQueue((q) => [...q, ...files]);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    <label className="flex flex-col items-center justify-center w-[105px] h-[130px] border border-dashed border-input text-muted-foreground hover:border-gold cursor-pointer transition-colors p-2 text-center">
+                      <Upload className="size-5 mb-2 text-gold" />
+                      <span className="text-[0.6rem] uppercase tracking-wider">Upload</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files ?? []).slice(0, 4 - stagedImages.length);
+                          if (files.length) setCropQueue((q) => [...q, ...files]);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="flex items-end gap-6">
-              <div>
-                <label className="eyebrow" htmlFor="p-order">
-                  Sort order
-                </label>
-                <input
-                  id="p-order"
-                  type="number"
-                  value={draft.sort_order}
-                  onChange={(e) =>
-                    setDraft({ ...draft, sort_order: Number(e.target.value) })
-                  }
-                  className="mt-2 w-24 border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-gold"
-                />
-              </div>
-              <label className="flex items-center gap-2 pb-3 text-sm">
+            <div className="flex items-center gap-6 md:col-span-2">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input
                   type="checkbox"
                   checked={draft.featured}
                   onChange={(e) => setDraft({ ...draft, featured: e.target.checked })}
-                  className="size-4 accent-current"
+                  className="size-4 accent-gold"
                 />
-                Featured
+                Featured item
               </label>
             </div>
 
             <div className="flex gap-3 md:col-span-2">
               <button
                 type="submit"
-                disabled={busy || uploading}
+                disabled={busy}
                 className="inline-flex items-center gap-2 bg-foreground px-6 py-3 text-[0.7rem] uppercase tracking-[0.2em] text-background disabled:opacity-60"
               >
                 {busy ? <Loader2 className="size-3.5 animate-spin" /> : null}
-                Save
+                Save product
               </button>
               <button
                 type="button"
-                onClick={() => setDraft(null)}
+                onClick={() => { setDraft(null); setStagedImages([]); }}
                 className="border border-border px-6 py-3 text-[0.7rem] uppercase tracking-[0.2em]"
               >
                 Cancel
@@ -662,7 +750,7 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{product.name}</p>
                     <p className="eyebrow pt-1">
-                      {product.category} · #{product.sort_order}
+                      {product.category}
                     </p>
                   </div>
                 </div>
@@ -684,18 +772,7 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setDraft({
-                        id: product.id,
-                        name: product.name,
-                        category: product.category,
-                        description: product.description ?? "",
-                        image_url: product.image_url,
-                        featured: product.featured,
-                        sort_order: product.sort_order,
-                      });
-                      setExtraImagePaths(product.images && product.images.length > 0 ? product.images : [product.image_url]);
-                    }}
+                    onClick={() => handleStartEdit(product)}
                     className="inline-flex items-center gap-1.5 border border-border px-3 py-2 text-[0.65rem] uppercase tracking-[0.14em]"
                   >
                     <Pencil className="size-3.5" />
@@ -717,7 +794,23 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
         <section id="categories" className="mt-16 border-t border-border pt-10"><p className="eyebrow">Categories</p><h2 className="font-display text-3xl">Collection groups</h2><div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{CATEGORIES.map((category) => <div key={category} className="flex items-center justify-between border border-border bg-background p-4"><span className="text-sm">{category}</span><span className="text-xs text-muted-foreground">Active</span></div>)}</div></section>
         <OfferManager session={session} />
       </div>
-      {cropQueue[0] ? <ImageCropDialog file={cropQueue[0]} onCancel={() => setCropQueue((items) => items.slice(1))} onComplete={(file) => { void upload(file); setCropQueue((items) => items.slice(1)); }} /> : null}
+      {cropQueue[0] ? (
+        <ImageCropDialog
+          file={cropQueue[0]}
+          onCancel={() => setCropQueue((items) => items.slice(1))}
+          onComplete={(file) => {
+            setStagedImages((prev) => [
+              ...prev,
+              {
+                file,
+                url: URL.createObjectURL(file),
+                isPrimary: prev.length === 0,
+              },
+            ]);
+            setCropQueue((items) => items.slice(1));
+          }}
+        />
+      ) : null}
     </div>
   );
 }
