@@ -67,17 +67,25 @@ function Explore() {
     [products, hiddenCategories],
   );
 
-  const filtered = useMemo(() => {
-    const activeProducts = products.filter((p) => !hiddenCategories.includes(p.category));
-    return category ? activeProducts.filter((p) => p.category === category) : activeProducts;
-  }, [products, category, hiddenCategories]);
-
   const [visibleCount, setVisibleCount] = useState(24);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Reset visibleCount when category filter changes
   useEffect(() => {
     setVisibleCount(24);
   }, [category]);
+
+  const filtered = useMemo(() => {
+    let activeProducts = products.filter((p) => !hiddenCategories.includes(p.category));
+    if (category) {
+      activeProducts = activeProducts.filter((p) => p.category === category);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      activeProducts = activeProducts.filter((p) => p.name.toLowerCase().includes(q));
+    }
+    return activeProducts;
+  }, [products, category, hiddenCategories, searchQuery]);
 
   const displayedProducts = filtered.slice(0, visibleCount);
   const hasMore = filtered.length > visibleCount;
@@ -96,6 +104,16 @@ function Explore() {
             Pick a category, then send an enquiry for pricing, sizes and finish
             options. we quote per piece.
           </p>
+          
+          <div className="mt-8 max-w-md">
+            <input
+              type="text"
+              placeholder="Search pieces by name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full border border-border bg-background px-4 py-3 text-sm outline-none focus:border-gold focus:ring-1 focus:ring-gold transition-all"
+            />
+          </div>
         </div>
       </section>
 

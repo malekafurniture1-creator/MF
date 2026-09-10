@@ -1263,8 +1263,33 @@ function OfferManager({ session }: { session: Session | null }) {
   async function uploadOffer(file: File) {
     try {
       const token = session?.access_token || "";
+      
+      const webpFile = await new Promise<File>((resolve, reject) => {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return reject(new Error("Failed to get canvas context"));
+          ctx.drawImage(img, 0, 0);
+          canvas.toBlob((blob) => {
+            if (!blob) return reject(new Error("Failed to convert image to WebP"));
+            const filename = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+            resolve(new File([blob], filename, { type: "image/webp" }));
+          }, "image/webp", 0.9);
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          reject(new Error("Failed to load image for conversion"));
+        };
+        img.src = objectUrl;
+      });
+
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", webpFile);
       form.append("prefix", "offers/");
 
       const resp = await fetch("/api/b2-upload", {

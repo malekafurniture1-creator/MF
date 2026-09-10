@@ -121,8 +121,8 @@ export async function withImageUrls(
     let allImages: string[] = [];
     if (resolvedExtraImages.length > 0) {
       allImages = Array.from(new Set(resolvedExtraImages));
-      if (primaryImage && !allImages.includes(primaryImage)) {
-        allImages = [primaryImage, ...allImages];
+      if (primaryImage) {
+        allImages = [primaryImage, ...allImages.filter((img) => img !== primaryImage)];
       }
     } else if (primaryImage) {
       allImages = [primaryImage];

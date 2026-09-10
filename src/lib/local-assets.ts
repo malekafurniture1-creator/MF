@@ -9,6 +9,10 @@ import storefront from "@/assets/storefront.png";
 import weddingSet1 from "@/assets/Wedding_set_1.png";
 import weddingSet2 from "@/assets/Wedding_set_2.png";
 import heroVideo from "@/assets/Video Project.mp4";
+import heroDesktopWebm from "@/assets/maleka-hero-desktop.webm";
+import heroDesktopMp4 from "@/assets/maleka-hero-desktop.mp4";
+import heroMobileMp4 from "@/assets/maleka-hero-mobile.mp4";
+import heroPoster from "@/assets/maleka-hero-poster.webp";
 
 export {
   designerBed,
@@ -21,7 +25,10 @@ export {
   storefront,
   weddingSet1,
   weddingSet2,
-  heroVideo,
+  heroDesktopWebm,
+  heroDesktopMp4,
+  heroMobileMp4,
+  heroPoster,
 };
 
 /** Maps the asset URLs written by Lovable's seed migration to locally bundled files. */

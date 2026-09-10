@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, MapPin, MessageCircle, Phone, Star } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 import { Footer } from "@/components/site/Footer";
 import { Header } from "@/components/site/Header";
@@ -15,7 +16,10 @@ import {
   sectionalSofa as sofa,
   showcaseCabinet,
   storefront,
-  heroVideo,
+  heroDesktopWebm,
+  heroDesktopMp4,
+  heroMobileMp4,
+  heroPoster,
 } from "@/lib/local-assets";
 import { CATEGORIES } from "@/lib/products";
 
@@ -42,6 +46,13 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && (navigator as any).connection?.saveData) {
+      videoRef.current?.pause();
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -50,15 +61,22 @@ function Home() {
       <section className="relative">
         <div className="relative h-[78vh] min-h-[520px] w-full overflow-hidden">
           <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            aria-label="MALEKA FURNITURES"
-            className="h-full w-full object-cover object-[60%_center] md:object-center"
-          >
-            <source src={heroVideo} type="video/mp4" />
-          </video>
+  autoPlay
+  muted
+  loop
+  playsInline
+  poster={heroPoster}
+  aria-label="MALEKA FURNITURES"
+  className="h-full w-full object-cover object-[60%_center] md:object-center"
+  ref={videoRef}
+>
+  {/* Mobile MP4 */}
+  <source src={heroMobileMp4} type="video/mp4" media="(max-width: 767px)" />
+  {/* Desktop WebM (primary) */}
+  <source src={heroDesktopWebm} type="video/webm" />
+  {/* Desktop MP4 fallback */}
+  <source src={heroDesktopMp4} type="video/mp4" />
+</video>
           <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/35 to-ink/5" />
           <div className="absolute inset-x-0 bottom-0">
             <div className="mx-auto max-w-7xl px-5 pb-12 md:px-8 md:pb-16">

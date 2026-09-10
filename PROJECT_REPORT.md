@@ -68,7 +68,7 @@ The hero is a full-width looping showroom video with a dark readable overlay. It
 - Enquire Now CTA to WhatsApp
 - Rating and Google review-count trust line
 
-The hero’s composition, messaging, video treatment, and primary actions were preserved as requested; only the real business rating/count and city label were updated.
+The background video utilizes an optimized responsive implementation featuring four assets: a WebP poster fallback, a mobile-optimized MP4, a desktop-preferred WebM, and a desktop MP4 fallback. It also respects the browser's "Save-Data" setting to pause playback for constrained connections. The hero’s composition, messaging, video treatment, and primary actions were preserved as requested.
 
 ### Active offer section
 
@@ -120,6 +120,7 @@ That CTA opens the Explore page already filtered to `Wedding Sets`. Its WhatsApp
 
 The `/explore` route is the practical browsing experience:
 
+- Case-insensitive text search bar for finding products by name
 - Category filter strip, including an All state
 - Product count
 - Responsive product grid
@@ -186,26 +187,24 @@ The dashboard includes Home and Sign Out actions plus entry cards for Products, 
 
 ### Product maintenance
 
-The product interface currently supports:
+The product interface enables complete catalogue control:
 
-- Create a product
-- Edit a product
-- Delete a product
-- Set product name, description, category, featured status, and sort order
-- Upload one to four product images
-- Create WebP output from uploads
-- Set the first image as primary
-- Store additional images in `product_images`
-- Mark product featured
-
-During upload, the admin selects one to four input images. Each image is placed in a sequential crop dialog with a fixed **4:5** frame. The user can adjust zoom, horizontal position, and vertical position. The browser renders the result to an optimized WebP file before upload.
+- **Create / Edit / Delete**: Full lifecycle management of product records.
+- **Visibility & Featured**: Toggles to hide a product from the public catalogue or bump it to the featured section.
+- **1–4 Image Management**: Owners can upload up to 4 images per product.
+- **Automatic Ordering**: Images are displayed in the order they are added; manual sort order inputs have been removed in favour of visual sequence.
+- **Primary Star**: A star icon on the image thumbnail allows the owner to instantly mark any of the images as the primary thumbnail. The catalogue will automatically extract the starred image and display it first.
+- **Fixed 4:5 Cropper**: All uploaded product images go through a forced 4:5 aspect ratio cropping tool before upload to ensure catalogue uniformity.
+  - **Fit/Fill**: Presets allow the owner to "Fit" the image to show maximum area without empty space, or "Fill" to zoom in slightly.
+  - **Rotate/pan/zoom**: The crop dialog supports 90° rotation, mouse-wheel/pinch zooming, and drag panning.
+  - **WebP processing**: The browser generates a highly optimized 1200×1500 WebP file entirely client-side before uploading, saving significant bandwidth and storage.
 
 ### Offer maintenance
 
 The offer area supports:
 
 - Create offer
-- Upload/crop a promotional image as WebP
+- Upload a promotional image (automatically converted to WebP client-side while preserving its original aspect ratio)
 - Activate/deactivate an offer
 - Delete an offer
 
@@ -536,7 +535,39 @@ These can be added later without replacing the core catalogue architecture.
 
 ---
 
-## 15. Recommended next implementation milestones
+## 15. Operational details
+
+### Exactly what the owner can do
+- Read and manage all catalogue records (create, edit, delete).
+- Upload, replace, set primary, and remove approved product images (1–4 per product).
+- Toggle public visibility and featured status for products.
+- Create, update, toggle, and delete promotional offers.
+- Manage categories.
+
+### Exactly what the public user can do
+- Read visible categories, active offers, and visible products.
+- Use a case-insensitive search bar to find products by name.
+- View optimized product image galleries and video presentations.
+- Send direct WhatsApp enquiries prepopulated with specific product, offer, or wedding set context.
+- Call the showroom directly or view satellite map directions.
+
+### What is deliberately NOT supported
+- No shopping cart, checkout, or online payments.
+- No customer order management or account creation.
+- No real-time stock/inventory tracking or warehouse/POS integration.
+- No automated delivery promise/date calculation.
+
+### Image standards
+- **Product-image standards**: Enforced fixed 4:5 aspect ratio. Client-side cropped, scaled to a maximum of 1200×1500 pixels, and converted to highly optimized WebP format before upload to ensure uniformity across the catalogue grid.
+- **Offer-image standards**: Uploaded in their original aspect ratio (no fixed cropping) to preserve promotional text and composition, but still optimized and converted to WebP.
+
+### Backup/cleanup behavior
+- **Orphaned Images**: If an error occurs during product creation/upload, or if an owner explicitly deletes a product or image, an `/api/b2-delete` request is issued to automatically remove the backing object from the B2 bucket. This prevents accumulating orphaned image data over time.
+- Database records strictly cascade or safely remove dependencies when parent entities are deleted.
+
+---
+
+## 16. Recommended next implementation milestones
 
 1. **Connect Supabase:** run the fresh script, set environment variables, create the owner role, and validate one real product record.
 2. **Connect owner uploads to B2:** add protected Worker upload, replace, and delete endpoints; store returned Worker URLs in Supabase. Do not expose B2 credentials or upload all catalogue images manually before this is ready.
@@ -549,11 +580,12 @@ These can be added later without replacing the core catalogue architecture.
 
 ---
 
-## 16. Current-status snapshot
+## 17. Current-status snapshot
 
 | Area | Status | Notes |
 |---|---|---|
 | Maleka branding/contact/rating | Implemented | Uses real supplied location, phone numbers, hours, rating and review count. |
+| Hero background video | Implemented | Uses 4 optimized responsive formats (WebM/MP4) and respects Save-Data. |
 | Public homepage/catalogue/detail | Implemented | Public catalogue requires real Supabase data. |
 | Wedding set routing | Implemented | Routes to `Wedding Sets` filter. |
 | Satellite map | Implemented | Google map embed uses satellite parameter. |
