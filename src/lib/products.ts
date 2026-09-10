@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { localAssetByFilename } from "@/lib/local-assets";
+import { PROXY_BASE } from "@/lib/b2";
 
 export type Product = {
   id: string;
@@ -14,7 +15,10 @@ export type Product = {
   created_at: string;
 };
 
-export type ProductWithImage = Product & { image: string };
+export type ProductWithImage = Product & {
+  image: string;
+  images: string[];
+};
 
 export const CATEGORIES = [
   "Sofas",
@@ -44,24 +48,94 @@ const localImageFor = (value: string) => {
 export async function withImageUrls(
   rows: Product[],
 ): Promise<ProductWithImage[]> {
-  const paths = rows.filter((r) => !isDirectUrl(r.image_url)).map((r) => r.image_url);
-  const signed = new Map<string, string>();
+  if (rows.length === 0) return [];
 
-  if (paths.length > 0) {
-    const { data } = await supabase.storage
-      .from("product-images")
-      .createSignedUrls(paths, 60 * 60 * 24 * 7);
-    data?.forEach((entry) => {
-      if (entry.path && entry.signedUrl) signed.set(entry.path, entry.signedUrl);
-    });
+  const productIds = rows.map((r) => r.id);
+
+  // Fetch secondary/multiple images from product_images table
+  let productImagesData: any[] = [];
+  try {
+    const { data } = await (supabase as any)
+      .from("product_images")
+      .select("product_id, image_url, sort_order, is_primary")
+      .in("product_id", productIds)
+      .order("sort_order", { ascending: true });
+    if (data) productImagesData = data;
+  } catch (err) {
+    console.error("Error fetching product_images:", err);
   }
 
-  return rows.map((row) => ({
-    ...row,
-    image: localImageFor(row.image_url) ?? (isDirectUrl(row.image_url)
-      ? row.image_url
-      : (signed.get(row.image_url) ?? "")),
-  }));
+  // Group raw image URLs by product_id
+  const rawImagesByProductId = new Map<string, string[]>();
+  productImagesData.forEach((row: any) => {
+    const list = rawImagesByProductId.get(row.product_id) || [];
+    if (row.image_url) list.push(row.image_url);
+    rawImagesByProductId.set(row.product_id, list);
+  });
+
+  // Collect all storage paths that need signing
+  const pathsToSign: string[] = [];
+  rows.forEach((r) => {
+    if (r.image_url && !isDirectUrl(r.image_url) && !localImageFor(r.image_url)) {
+      pathsToSign.push(r.image_url);
+    }
+  });
+  productImagesData.forEach((row: any) => {
+    if (row.image_url && !isDirectUrl(row.image_url) && !localImageFor(row.image_url)) {
+      pathsToSign.push(row.image_url);
+    }
+  });
+
+  const signed = new Map<string, string>();
+  if (pathsToSign.length > 0) {
+    try {
+      const { data } = await supabase.storage
+        .from("product-images")
+        .createSignedUrls(Array.from(new Set(pathsToSign)), 60 * 60 * 24 * 7);
+      data?.forEach((entry) => {
+        if (entry.path && entry.signedUrl) signed.set(entry.path, entry.signedUrl);
+      });
+    } catch (err) {
+      console.error("Error signing storage URLs:", err);
+    }
+  }
+
+  const resolveUrl = (raw: string): string => {
+    if (!raw) return "";
+    const local = localImageFor(raw);
+    if (local) return local;
+    if (isDirectUrl(raw)) return raw;
+    const storageSigned = signed.get(raw);
+    if (storageSigned) return storageSigned;
+    if (raw.startsWith("products/") || raw.startsWith("offers/") || raw.includes("-")) {
+      return `${PROXY_BASE}/images/${raw.replace(/^\/+/, "")}`;
+    }
+    return raw;
+  };
+
+  return rows.map((row) => {
+    const primaryImage = resolveUrl(row.image_url);
+    const extraRawImages = rawImagesByProductId.get(row.id) || [];
+    const resolvedExtraImages = extraRawImages.map(resolveUrl).filter(Boolean);
+
+    let allImages: string[] = [];
+    if (resolvedExtraImages.length > 0) {
+      allImages = Array.from(new Set(resolvedExtraImages));
+      if (primaryImage && !allImages.includes(primaryImage)) {
+        allImages = [primaryImage, ...allImages];
+      }
+    } else if (primaryImage) {
+      allImages = [primaryImage];
+    }
+
+    allImages = Array.from(new Set(allImages));
+
+    return {
+      ...row,
+      image: primaryImage || allImages[0] || "",
+      images: allImages,
+    };
+  });
 }
 
 export async function fetchProducts(): Promise<ProductWithImage[]> {

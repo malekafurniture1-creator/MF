@@ -264,9 +264,9 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
         throw new Error(data?.error || `Upload failed (${resp.status})`);
       }
 
-      // Store proxy URL in draft and keep the B2 key for later reference if needed
+      // Store proxy URL in draft and add to extraImagePaths
       setDraft((d) => (d ? { ...d, image_url: d.image_url || data.url } : d));
-      setExtraImagePaths((paths) => [...paths, data.key]);
+      setExtraImagePaths((paths) => [...paths, data.url]);
       toast.success("Photo uploaded");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Upload failed");
@@ -298,7 +298,17 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
       const { error } = result;
       if (error) throw error;
       const productId = result.data?.id ?? draft.id;
-      if (productId && extraImagePaths.length > 1) await (supabase as any).from("product_images").insert(extraImagePaths.map((image_url, index) => ({ product_id: productId, image_url, sort_order: index, is_primary: index === 0 })));
+      if (productId && extraImagePaths.length > 0) {
+        await (supabase as any).from("product_images").delete().eq("product_id", productId);
+        await (supabase as any).from("product_images").insert(
+          extraImagePaths.map((image_url, index) => ({
+            product_id: productId,
+            image_url,
+            sort_order: index,
+            is_primary: index === 0,
+          })),
+        );
+      }
       toast.success(draft.id ? "Product updated" : "Product added");
       setDraft(null); setExtraImagePaths([]);
       refresh();
@@ -552,7 +562,7 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
                   </button>
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
                       setDraft({
                         id: product.id,
                         name: product.name,
@@ -561,8 +571,9 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
                         image_url: product.image_url,
                         featured: product.featured,
                         sort_order: product.sort_order,
-                      })
-                    }
+                      });
+                      setExtraImagePaths(product.images && product.images.length > 0 ? product.images : [product.image_url]);
+                    }}
                     className="inline-flex items-center gap-1.5 border border-border px-3 py-2 text-[0.65rem] uppercase tracking-[0.14em]"
                   >
                     <Pencil className="size-3.5" />
@@ -600,14 +611,37 @@ function OfferManager({ session }: { session: Session | null }) {
     },
   });
   const [headline, setHeadline] = useState("");
+  const [originalPrice, setOriginalPrice] = useState("");
+  const [offerPrice, setOfferPrice] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [offerCrop, setOfferCrop] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+
   async function createOffer(e: React.FormEvent) {
-    e.preventDefault(); if (!headline.trim() || !imageUrl.trim()) return toast.error("Add an offer headline and image URL");
+    e.preventDefault();
+    if (!headline.trim() || !imageUrl.trim()) {
+      toast.error("Add an offer headline and image URL");
+      return;
+    }
     setSaving(true);
-    const { error } = await (supabase as any).from("offers").insert({ headline: headline.trim(), image_url: imageUrl.trim(), active: false });
-    setSaving(false); if (error) toast.error(error.message); else { setHeadline(""); setImageUrl(""); toast.success("Offer created as inactive"); queryClient.invalidateQueries({ queryKey: ["owner-offers"] }); }
+    const { error } = await (supabase as any).from("offers").insert({
+      headline: headline.trim(),
+      image_url: imageUrl.trim(),
+      original_price: originalPrice.trim() || null,
+      offer_price: offerPrice.trim() || null,
+      active: false,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      setHeadline("");
+      setImageUrl("");
+      setOriginalPrice("");
+      setOfferPrice("");
+      toast.success("Offer created as inactive");
+      queryClient.invalidateQueries({ queryKey: ["owner-offers"] });
+    }
   }
   async function uploadOffer(file: File) {
     try {
@@ -641,9 +675,106 @@ function OfferManager({ session }: { session: Session | null }) {
     if (error) toast.error(error.message); else { queryClient.invalidateQueries({ queryKey: ["owner-offers"] }); queryClient.invalidateQueries({ queryKey: ["active-offers"] }); }
   }
   async function remove(offer: Offer) {
-    if (!window.confirm(`Delete \"${offer.headline}\"?`)) return;
+    if (!window.confirm(`Delete "${offer.headline}"?`)) return;
     const { error } = await (supabase as any).from("offers").delete().eq("id", offer.id);
     if (error) toast.error(error.message); else { queryClient.invalidateQueries({ queryKey: ["owner-offers"] }); queryClient.invalidateQueries({ queryKey: ["active-offers"] }); }
   }
-  return <section className="mt-16 border-t border-border pt-10"><div className="flex items-end justify-between gap-4"><div><p className="eyebrow">Offer management</p><h2 className="font-display text-3xl">Featured offers</h2></div><span className="text-xs text-muted-foreground">Only active offers appear on the website.</span></div><form onSubmit={createOffer} className="mt-6 grid gap-3 border border-border bg-background p-4 md:grid-cols-[1fr_1fr_auto]"><input value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="Offer headline" className="border border-input px-3 py-2 text-sm" /><label className="cursor-pointer border border-dashed border-input px-3 py-2 text-sm text-muted-foreground">{imageUrl ? "Offer image prepared (WebP)" : "Upload offer image"}<input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) setOfferCrop(file); }} /></label><button disabled={saving} className="bg-foreground px-4 py-2 text-[.65rem] uppercase tracking-[.14em] text-background">Create offer</button></form><div className="mt-4 space-y-2">{isLoading ? <div className="h-14 animate-pulse bg-muted" /> : offers.length ? offers.map((offer) => <div key={offer.id} className="flex items-center justify-between gap-3 border border-border bg-background p-3"><p className="min-w-0 truncate text-sm">{offer.headline}</p><div className="flex gap-2"><button onClick={() => toggle(offer)} className="border border-border px-3 py-1.5 text-[.6rem] uppercase tracking-wider">{offer.active ? "Deactivate" : "Activate"}</button><button onClick={() => remove(offer)} className="border border-destructive/40 px-3 py-1.5 text-[.6rem] uppercase tracking-wider text-destructive">Delete</button></div></div>) : <p className="text-sm text-muted-foreground">No offers created.</p>}</div>{offerCrop ? <ImageCropDialog file={offerCrop} onCancel={() => setOfferCrop(null)} onComplete={(file) => { void uploadOffer(file); setOfferCrop(null); }} /> : null}</section>;
+  return (
+    <section className="mt-16 border-t border-border pt-10">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">Offer management</p>
+          <h2 className="font-display text-3xl">Featured offers</h2>
+        </div>
+        <span className="text-xs text-muted-foreground">Only active offers appear on the website.</span>
+      </div>
+      <form onSubmit={createOffer} className="mt-6 grid gap-3 border border-border bg-background p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <input
+          value={headline}
+          onChange={(e) => setHeadline(e.target.value)}
+          placeholder="Offer headline"
+          className="border border-input px-3 py-2 text-sm sm:col-span-2"
+          required
+        />
+        <input
+          value={originalPrice}
+          onChange={(e) => setOriginalPrice(e.target.value)}
+          placeholder="Original price (optional, e.g. ₹1,50,000)"
+          className="border border-input px-3 py-2 text-sm"
+        />
+        <input
+          value={offerPrice}
+          onChange={(e) => setOfferPrice(e.target.value)}
+          placeholder="Offer price (optional, e.g. ₹1,19,999)"
+          className="border border-input px-3 py-2 text-sm"
+        />
+        <label className="cursor-pointer border border-dashed border-input px-3 py-2 text-sm text-muted-foreground flex items-center justify-center sm:col-span-2 lg:col-span-3">
+          {imageUrl ? "Offer image prepared (WebP)" : "Upload offer image"}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) setOfferCrop(file);
+            }}
+          />
+        </label>
+        <button
+          disabled={saving}
+          className="bg-foreground px-4 py-2 text-[.65rem] uppercase tracking-[.14em] text-background hover:opacity-90 disabled:opacity-50"
+        >
+          Create offer
+        </button>
+      </form>
+      <div className="mt-4 space-y-2">
+        {isLoading ? (
+          <div className="h-14 animate-pulse bg-muted" />
+        ) : offers.length ? (
+          offers.map((offer) => (
+            <div key={offer.id} className="flex items-center justify-between gap-3 border border-border bg-background p-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{offer.headline}</p>
+                {offer.original_price || offer.offer_price ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {offer.original_price ? <span className="line-through">{offer.original_price}</span> : null}
+                    {offer.original_price && offer.offer_price ? " " : ""}
+                    {offer.offer_price ? <span className="font-semibold text-foreground">{offer.offer_price}</span> : null}
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggle(offer)}
+                  className="border border-border px-3 py-1.5 text-[.6rem] uppercase tracking-wider"
+                >
+                  {offer.active ? "Deactivate" : "Activate"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => remove(offer)}
+                  className="border border-destructive/40 px-3 py-1.5 text-[.6rem] uppercase tracking-wider text-destructive"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-muted-foreground">No offers created.</p>
+        )}
+      </div>
+      {offerCrop ? (
+        <ImageCropDialog
+          file={offerCrop}
+          onCancel={() => setOfferCrop(null)}
+          onComplete={(file) => {
+            void uploadOffer(file);
+            setOfferCrop(null);
+          }}
+        />
+      ) : null}
+    </section>
+  );
 }
