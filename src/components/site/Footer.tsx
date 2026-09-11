@@ -58,7 +58,13 @@ export function Footer() {
           <Link to="/visit" className="block text-ink-foreground/80 hover:text-gold">
             Visit the showroom
           </Link>
-          <Link to="/owner" className="block text-ink-foreground/50 hover:text-gold">
+          <Link to="/privacy" className="block text-ink-foreground/80 hover:text-gold">
+            Privacy Policy
+          </Link>
+          <Link to="/terms" className="block text-ink-foreground/80 hover:text-gold">
+            Terms & Conditions
+          </Link>
+          <Link to="/owner" className="block text-ink-foreground/50 hover:text-gold mt-6">
             Owner login
           </Link>
         </div>
