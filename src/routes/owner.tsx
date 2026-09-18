@@ -299,6 +299,78 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
     }
   }
 
+  async function removeProductImage(image: StagedImage, index: number) {
+    const remaining = stagedImages.filter((_, imageIndex) => imageIndex !== index);
+    if (draft?.id && !image.file) {
+      const isCurrentPrimary = image.isPrimary || draft.image_url === image.url;
+      if (remaining.length === 0) {
+        toast.error("Add a replacement photo before removing the last image");
+        return;
+      }
+      setBusy(true);
+      try {
+        const nextPrimary = remaining.find((item) => item.isPrimary) ?? remaining[0];
+        if (isCurrentPrimary && nextPrimary && !nextPrimary.file) {
+          const { error: productError } = await supabase
+            .from("products")
+            .update({ image_url: nextPrimary.url })
+            .eq("id", draft.id);
+          if (productError) throw productError;
+          const { error: primaryError } = await (supabase as any)
+            .from("product_images")
+            .update({ is_primary: true })
+            .eq("product_id", draft.id)
+            .eq("image_url", nextPrimary.url);
+          if (primaryError) throw primaryError;
+        } else if (isCurrentPrimary && nextPrimary?.file) {
+          toast.error("Save the replacement photo before removing the primary image");
+          return;
+        }
+
+        const { error: imageError } = await (supabase as any)
+          .from("product_images")
+          .delete()
+          .eq("product_id", draft.id)
+          .eq("image_url", image.url);
+        if (imageError) throw imageError;
+
+        const response = await fetch("/api/b2-delete", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session?.access_token || ""}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ urls: [image.url] }),
+        });
+        const deletion = await response.json();
+        if (!response.ok || !deletion.success || deletion.deleted < 1) {
+          throw new Error("Image record removed, but storage deletion failed");
+        }
+
+        if (isCurrentPrimary && nextPrimary) {
+          setDraft((current) => current ? { ...current, image_url: nextPrimary.url } : current);
+        }
+        setStagedImages(remaining.map((item) => ({
+          ...item,
+          isPrimary: item === nextPrimary,
+        })));
+        refresh();
+        toast.success("Image removed");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not remove image");
+        refresh();
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    setStagedImages(remaining.map((item) => ({
+      ...item,
+      isPrimary: item.isPrimary || (image.isPrimary && item === remaining[0]),
+    })));
+  }
+
   const handleStartEdit = async (product: ProductWithImage) => {
     setDraft({
       id: product.id,
@@ -931,16 +1003,10 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
                       <button
                         type="button"
                         title="Remove image"
-                        onClick={() => {
-                          setStagedImages((prev) => {
-                            const next = prev.filter((_, idx) => idx !== i);
-                            if (next.length > 0 && !next.some((x) => x.isPrimary)) {
-                              next[0].isPrimary = true;
-                            }
-                            return next;
-                          });
-                        }}
-                        className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600/80 z-10"
+                        aria-label={`Remove image ${i + 1}`}
+                        disabled={busy}
+                        onClick={() => void removeProductImage(imgItem, i)}
+                        className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full hover:bg-red-600/80 disabled:opacity-50 z-10"
                       >
                         <X className="size-3.5" />
                       </button>
@@ -1521,4 +1587,3 @@ function OfferManager({ session }: { session: Session | null }) {
     </div>
   );
 }
-
