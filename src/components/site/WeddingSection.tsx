@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { weddingSet1, weddingSet2 } from "@/lib/local-assets";
-import { whatsappUrl } from "@/lib/business";
 
 export function WeddingSection() {
   return (
@@ -65,12 +64,9 @@ function WeddingCard({
   text: string;
 }) {
   return (
-    <a
-      href={whatsappUrl(
-        `Hello Maleka Furnitures, I would like to plan a wedding furniture package: ${title}.`,
-      )}
-      target="_blank"
-      rel="noreferrer"
+    <Link
+      to="/explore"
+      search={{ category: "Wedding Sets" }}
       className="group border border-[#fff4df]/15 bg-[#4b2b1c] p-2"
     >
       <div className="overflow-hidden">
@@ -82,6 +78,6 @@ function WeddingCard({
       </div>
       <h3 className="mt-3 font-display text-xl">{title}</h3>
       <p className="mt-1 pb-2 text-xs leading-relaxed text-[#fff4df]/65">{text}</p>
-    </a>
+    </Link>
   );
 }
