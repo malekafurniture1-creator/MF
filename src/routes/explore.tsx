@@ -182,11 +182,11 @@ function Explore() {
               </p>
             </div>
             <div className="grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
-              {displayedProducts.map((product, i) => (
+              {displayedProducts.map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
-                  ratio={i % 5 === 0 ? "tall" : "square"}
+                  ratio="tall"
                 />
               ))}
             </div>
