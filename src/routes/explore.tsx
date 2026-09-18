@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Footer } from "@/components/site/Footer";
 import { Header } from "@/components/site/Header";
 import { ProductCard } from "@/components/site/ProductCard";
 import { FurnitureSilhouette } from "@/components/site/FurnitureSilhouette";
 import { whatsappUrl } from "@/lib/business";
-import { fetchProducts } from "@/lib/products";
+import { CATEGORIES, fetchExplorePage } from "@/lib/products";
 import { cn } from "@/lib/utils";
 
 type Search = { category?: string | undefined };
@@ -42,10 +42,7 @@ function Explore() {
   const { category } = Route.useSearch();
   const navigate = Route.useNavigate();
 
-  const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products"],
-    queryFn: fetchProducts,
-  });
+  const [searchQuery, setSearchQuery] = useState("");
 
   const hiddenCategories: string[] = useMemo(() => {
     if (typeof window !== "undefined") {
@@ -60,35 +57,38 @@ function Explore() {
   }, []);
 
   const categories = useMemo(
-    () =>
-      Array.from(new Set(products.map((p) => p.category)))
+    () => {
+      let configured: string[] = [...CATEGORIES];
+      if (typeof window !== "undefined") {
+        try {
+          const saved = localStorage.getItem("maleka_custom_categories");
+          if (saved) configured = JSON.parse(saved);
+        } catch {}
+      }
+      return Array.from(new Set(configured))
         .filter((c) => !hiddenCategories.includes(c))
-        .sort(),
-    [products, hiddenCategories],
+        .sort();
+    },
+    [hiddenCategories],
   );
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+    queryKey: ["explore-products", category ?? null, searchQuery.trim(), hiddenCategories],
+    initialPageParam: undefined as { created_at: string; id: string } | undefined,
+    queryFn: ({ pageParam }) => fetchExplorePage({ category, search: searchQuery, cursor: pageParam, hiddenCategories }),
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+  });
+  const displayedProducts = data?.pages.flatMap((page) => page.products) ?? [];
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const [visibleCount, setVisibleCount] = useState(24);
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // Reset visibleCount when category filter changes
   useEffect(() => {
-    setVisibleCount(24);
-  }, [category]);
-
-  const filtered = useMemo(() => {
-    let activeProducts = products.filter((p) => !hiddenCategories.includes(p.category));
-    if (category) {
-      activeProducts = activeProducts.filter((p) => p.category === category);
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      activeProducts = activeProducts.filter((p) => p.name.toLowerCase().includes(q));
-    }
-    return activeProducts;
-  }, [products, category, hiddenCategories, searchQuery]);
-
-  const displayedProducts = filtered.slice(0, visibleCount);
-  const hasMore = filtered.length > visibleCount;
+    const target = loadMoreRef.current;
+    if (!target || !hasNextPage) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting && !isFetchingNextPage) void fetchNextPage();
+    }, { rootMargin: "600px" });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [displayedProducts.length, fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -157,7 +157,7 @@ function Explore() {
               <div key={i} className="aspect-[4/3] animate-pulse bg-muted" />
             ))}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : displayedProducts.length === 0 ? (
           <div className="border border-dashed border-border py-24 text-center">
             <p className="font-display text-3xl">Nothing here yet</p>
             <p className="mt-3 text-sm text-muted-foreground">
@@ -176,8 +176,8 @@ function Explore() {
           <>
             <div className="mb-8 flex items-center justify-between">
               <p className="eyebrow">
-                Showing {displayedProducts.length} of {filtered.length}{" "}
-                {filtered.length === 1 ? "piece" : "pieces"}
+                Showing {displayedProducts.length}{" "}
+                {displayedProducts.length === 1 ? "piece" : "pieces"}
                 {category ? ` · ${category}` : ""}
               </p>
             </div>
@@ -191,17 +191,7 @@ function Explore() {
               ))}
             </div>
 
-            {hasMore ? (
-              <div className="mt-16 flex flex-col items-center justify-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setVisibleCount((prev) => prev + 24)}
-                  className="border border-foreground bg-transparent px-8 py-3.5 text-[0.7rem] uppercase tracking-[0.2em] text-foreground transition-colors hover:bg-foreground hover:text-background"
-                >
-                  Load More ({filtered.length - displayedProducts.length} remaining)
-                </button>
-              </div>
-            ) : null}
+            {hasNextPage ? <div ref={loadMoreRef} className="mt-16 text-center text-sm text-muted-foreground" aria-live="polite">{isFetchingNextPage ? "Loading more…" : ""}</div> : null}
           </>
         )}
       </section>

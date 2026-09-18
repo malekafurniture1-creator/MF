@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ChevronLeft, ChevronRight, MessageCircle, Phone, X } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 import { Footer } from "@/components/site/Footer";
 import { Header } from "@/components/site/Header";
@@ -52,6 +52,25 @@ function ProductGallery({ images, name }: { images: string[]; name: string }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const loadedFullImages = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (images.length < 2) return;
+    const activeIndex = lightboxOpen ? lightboxIndex : selectedIndex;
+    const adjacent = lightboxOpen || activeIndex > 0
+      ? [(activeIndex + 1) % images.length, (activeIndex - 1 + images.length) % images.length]
+      : [(activeIndex + 1) % images.length];
+    const timer = window.setTimeout(() => {
+      adjacent.forEach((index) => {
+        const url = images[index];
+        if (!url || loadedFullImages.current.has(url)) return;
+        loadedFullImages.current.add(url);
+        const preload = new Image();
+        preload.src = url;
+      });
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [images, selectedIndex, lightboxIndex, lightboxOpen]);
 
   const touchStartX = useRef<number | null>(null);
 
@@ -155,7 +174,7 @@ function ProductGallery({ images, name }: { images: string[]; name: string }) {
                 idx === selectedIndex ? "border-gold ring-1 ring-gold" : "border-border opacity-70 hover:opacity-100"
               )}
             >
-              <img src={img} alt={`${name} thumbnail ${idx + 1}`} className="w-full h-full object-cover" loading="lazy" />
+              <img src={img} alt={`${name} thumbnail ${idx + 1}`} className="w-full h-full object-cover" loading="eager" />
             </button>
           ))}
         </div>
@@ -290,4 +309,3 @@ function ProductDetail() {
     </div>
   );
 }
-

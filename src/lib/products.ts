@@ -47,6 +47,7 @@ const localImageFor = (value: string) => {
 /** Resolves storage paths to signed URLs; CDN/absolute URLs pass through. */
 export async function withImageUrls(
   rows: Product[],
+  includeGallery = true,
 ): Promise<ProductWithImage[]> {
   if (rows.length === 0) return [];
 
@@ -55,12 +56,14 @@ export async function withImageUrls(
   // Fetch secondary/multiple images from product_images table
   let productImagesData: any[] = [];
   try {
+    if (includeGallery) {
     const { data } = await (supabase as any)
       .from("product_images")
       .select("product_id, image_url, sort_order, is_primary")
       .in("product_id", productIds)
       .order("sort_order", { ascending: true });
     if (data) productImagesData = data;
+    }
   } catch (err) {
     console.error("Error fetching product_images:", err);
   }
@@ -167,4 +170,50 @@ export async function fetchProduct(id: string): Promise<ProductWithImage | null>
   if (!data) return null;
   const [product] = await withImageUrls([data as Product]);
   return product ?? null;
+}
+
+export type ProductCursor = { created_at: string; id: string };
+
+export async function fetchExplorePage({
+  category,
+  search,
+  cursor,
+  hiddenCategories,
+}: {
+  category?: string | undefined;
+  search?: string | undefined;
+  cursor?: ProductCursor | undefined;
+  hiddenCategories?: string[] | undefined;
+}): Promise<{ products: ProductWithImage[]; nextCursor: ProductCursor | undefined }> {
+  let query = supabase
+    .from("products")
+    .select("*")
+    .eq("visible", true)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(10);
+
+  if (category) query = query.eq("category", category);
+  if (hiddenCategories?.length) {
+    const excluded = hiddenCategories.map((value) => `"${value.replaceAll('"', '\\"')}"`).join(",");
+    query = query.not("category", "in", `(${excluded})`);
+  }
+  if (search?.trim()) query = query.ilike("name", `%${search.trim().replace(/[%_]/g, "\\$&")}%`);
+  if (cursor) {
+    query = query.or(
+      `created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`,
+    );
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  const rows = (data ?? []) as Product[];
+  const products = await withImageUrls(rows, false);
+  const last = rows.at(-1);
+  return {
+    products,
+    nextCursor: rows.length === 10 && last
+      ? { created_at: last.created_at, id: last.id }
+      : undefined,
+  };
 }
