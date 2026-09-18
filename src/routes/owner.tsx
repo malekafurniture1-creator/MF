@@ -1336,16 +1336,17 @@ function OfferManager({ session }: { session: Session | null }) {
         img.onload = () => {
           URL.revokeObjectURL(objectUrl);
           const canvas = document.createElement("canvas");
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
+          const scale = Math.min(1, 2000 / Math.max(img.naturalWidth, img.naturalHeight));
+          canvas.width = Math.round(img.naturalWidth * scale);
+          canvas.height = Math.round(img.naturalHeight * scale);
           const ctx = canvas.getContext("2d");
           if (!ctx) return reject(new Error("Failed to get canvas context"));
-          ctx.drawImage(img, 0, 0);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           canvas.toBlob((blob) => {
-            if (!blob) return reject(new Error("Failed to convert image to WebP"));
+            if (!blob || blob.type !== "image/webp") return reject(new Error("Failed to convert image to WebP"));
             const filename = file.name.replace(/\.[^/.]+$/, "") + ".webp";
             resolve(new File([blob], filename, { type: "image/webp" }));
-          }, "image/webp", 0.9);
+          }, "image/webp", 0.86);
         };
         img.onerror = () => {
           URL.revokeObjectURL(objectUrl);
