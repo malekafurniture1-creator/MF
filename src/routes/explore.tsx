@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 
 import { Footer } from "@/components/site/Footer";
 import { Header } from "@/components/site/Header";
 import { ProductCard } from "@/components/site/ProductCard";
 import { FurnitureSilhouette } from "@/components/site/FurnitureSilhouette";
 import { whatsappUrl } from "@/lib/business";
-import { CATEGORIES, fetchExplorePage } from "@/lib/products";
+import { fetchCategories, fetchExplorePage, type ProductCursor } from "@/lib/products";
 import { cn } from "@/lib/utils";
 
 type Search = { category?: string | undefined };
@@ -18,6 +18,7 @@ export const Route = createFileRoute("/explore")({
       ? { category: search["category"] }
       : {},
   head: () => ({
+    links: [{ rel: "canonical", href: "https://malekafurnitures.com/explore" }],
     meta: [
       { title: "Explore the Collection — Maleka Furnitures Hyderabad" },
       {
@@ -44,37 +45,17 @@ function Explore() {
 
   const [searchQuery, setSearchQuery] = useState("");
 
-  const hiddenCategories: string[] = useMemo(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("maleka_hidden_categories");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {}
-      }
-    }
-    return [];
-  }, []);
-
-  const categories = useMemo(
-    () => {
-      let configured: string[] = [...CATEGORIES];
-      if (typeof window !== "undefined") {
-        try {
-          const saved = localStorage.getItem("maleka_custom_categories");
-          if (saved) configured = JSON.parse(saved);
-        } catch {}
-      }
-      return Array.from(new Set(configured))
-        .filter((c) => !hiddenCategories.includes(c))
-        .sort();
-    },
-    [hiddenCategories],
-  );
+  const { data: categoryRecords = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ["categories", "public"],
+    queryFn: () => fetchCategories(),
+  });
+  const categories = categoryRecords.map((record) => record.name);
+  const selectedCategoryIsVisible = !category || categories.includes(category);
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ["explore-products", category ?? null, searchQuery.trim(), hiddenCategories],
-    initialPageParam: undefined as { created_at: string; id: string } | undefined,
-    queryFn: ({ pageParam }) => fetchExplorePage({ category, search: searchQuery, cursor: pageParam, hiddenCategories }),
+    queryKey: ["explore-products", category ?? null, searchQuery.trim(), categories],
+    initialPageParam: undefined as ProductCursor | undefined,
+    enabled: !categoriesLoading && selectedCategoryIsVisible,
+    queryFn: ({ pageParam }) => fetchExplorePage({ category, search: searchQuery, cursor: pageParam, visibleCategories: categories }),
     getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
   const displayedProducts = data?.pages.flatMap((page) => page.products) ?? [];

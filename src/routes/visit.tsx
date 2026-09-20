@@ -14,6 +14,7 @@ import {
 
 export const Route = createFileRoute("/visit")({
   head: () => ({
+    links: [{ rel: "canonical", href: "https://malekafurnitures.com/visit" }],
     meta: [
       { title: "Visit Maleka Furnitures — Moghalpura, Hyderabad" },
       {

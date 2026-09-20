@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { Header } from "@/components/site/Header";
 import { supabase } from "@/integrations/supabase/client";
-import { CATEGORIES, fetchProducts, type ProductWithImage } from "@/lib/products";
+import { CATEGORIES, fetchCategories, fetchProducts, type ProductWithImage } from "@/lib/products";
 import { cn } from "@/lib/utils";
 import type { Offer } from "@/lib/offers";
 import { ImageCropDialog } from "@/components/site/ImageCropDialog";
@@ -278,6 +278,10 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products", "owner"],
     queryFn: () => fetchProducts({ includeHidden: true }),
+  });
+  const { data: categoryRecords = [] } = useQuery({
+    queryKey: ["categories", "owner"],
+    queryFn: () => fetchCategories({ includeHidden: true }),
   });
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -555,14 +559,24 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
   }
 
   // Category helpers
-  function toggleCategoryVisibility(categoryName: string) {
-    setHiddenCategories((prev) => {
-      const isHidden = prev.includes(categoryName);
-      const next = isHidden ? prev.filter((c) => c !== categoryName) : [...prev, categoryName];
-      localStorage.setItem("maleka_hidden_categories", JSON.stringify(next));
-      toast.success(isHidden ? `Category "${categoryName}" visible` : `Category "${categoryName}" hidden`);
-      return next;
-    });
+  async function toggleCategoryVisibility(categoryName: string) {
+    const category = categoryRecords.find((record) => record.name === categoryName);
+    if (!category) {
+      toast.error("This category could not be found in Supabase");
+      return;
+    }
+
+    const { error } = await (supabase as any)
+      .from("categories")
+      .update({ visible: !category.visible })
+      .eq("id", category.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ["categories"] });
+    toast.success(category.visible ? `Category "${categoryName}" hidden` : `Category "${categoryName}" visible`);
   }
 
   function handleAddCategory(e: React.FormEvent) {
@@ -1116,9 +1130,10 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
               </form>
             )}
 
-            {categoryList.map((cat) => {
+            {(categoryRecords.length ? categoryRecords.map((record) => record.name) : categoryList).map((cat) => {
               const productCount = products.filter((p) => p.category === cat).length;
-              const isHidden = hiddenCategories.includes(cat);
+              const categoryRecord = categoryRecords.find((record) => record.name === cat);
+              const isHidden = categoryRecord ? !categoryRecord.visible : hiddenCategories.includes(cat);
               const slug = cat.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
               return (

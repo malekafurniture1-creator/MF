@@ -26,8 +26,8 @@ const SUPABASE_PUBLISHABLE_KEY = () =>
 
 const B2_ENDPOINT = () => getEnv("B2_ENDPOINT", "https://s3.us-east-005.backblazeb2.com");
 const B2_BUCKET = () => getEnv("B2_BUCKET_NAME", "maleka-furniture-images");
-const B2_KEY_ID = () => getEnv("B2_KEY_ID", "00562c2c417c0cb0000000002");
-const B2_APP_KEY = () => getEnv("B2_APPLICATION_KEY", "K005DCe8Rhtef4dcDuLn+tL/9oKrJd4");
+const B2_KEY_ID = () => getEnv("B2_KEY_ID");
+const B2_APP_KEY = () => getEnv("B2_APPLICATION_KEY");
 
 /**
  * Public proxy base for images.
@@ -85,6 +85,9 @@ async function getB2Auth() {
 
   const keyId = B2_KEY_ID();
   const appKey = B2_APP_KEY();
+  if (!keyId || !appKey) {
+    throw new Error("B2_KEY_ID and B2_APPLICATION_KEY must be configured on the server");
+  }
   const basicAuth = btoa(`${keyId}:${appKey}`);
 
   const resp = await fetch("https://api.backblazeb2.com/b2api/v3/b2_authorize_account", {

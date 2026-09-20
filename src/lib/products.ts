@@ -36,6 +36,28 @@ export const CATEGORIES = [
 
 export type Category = (typeof CATEGORIES)[number];
 
+export type CategoryRecord = {
+  id: string;
+  name: string;
+  slug: string;
+  visible: boolean;
+  sort_order: number;
+};
+
+/** Reads the shared category configuration from Supabase. */
+export async function fetchCategories(options?: { includeHidden?: boolean }): Promise<CategoryRecord[]> {
+  let query = (supabase as any)
+    .from("categories")
+    .select("id, name, slug, visible, sort_order")
+    .order("sort_order", { ascending: true });
+
+  if (!options?.includeHidden) query = query.eq("visible", true);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []) as CategoryRecord[];
+}
+
 const isDirectUrl = (value: string) =>
   value.startsWith("/") || value.startsWith("http");
 
@@ -183,8 +205,12 @@ export async function fetchExplorePage({
   category?: string | undefined;
   search?: string | undefined;
   cursor?: ProductCursor | undefined;
-  hiddenCategories?: string[] | undefined;
+  visibleCategories?: string[] | undefined;
 }): Promise<{ products: ProductWithImage[]; nextCursor: ProductCursor | undefined }> {
+  if (visibleCategories && visibleCategories.length === 0) {
+    return { products: [], nextCursor: undefined };
+  }
+
   let query = supabase
     .from("products")
     .select("*")
@@ -195,10 +221,7 @@ export async function fetchExplorePage({
     .limit(10);
 
   if (category) query = query.eq("category", category);
-  if (hiddenCategories?.length) {
-    const excluded = hiddenCategories.map((value) => `"${value.replaceAll('"', '\\"')}"`).join(",");
-    query = query.not("category", "in", `(${excluded})`);
-  }
+  if (visibleCategories) query = query.in("category", visibleCategories);
   if (search?.trim()) query = query.ilike("name", `%${search.trim().replace(/[%_]/g, "\\$&")}%`);
   if (cursor) {
     const withinFeaturedGroup =

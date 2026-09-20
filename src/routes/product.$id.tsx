@@ -27,6 +27,7 @@ export const Route = createFileRoute("/product/$id")({
       };
     }
     return {
+      links: [{ rel: "canonical", href: `https://malekafurnitures.com/product/${loaderData.id}` }],
       meta: [
         { title: `${loaderData.name} — Maleka Furnitures` },
         {

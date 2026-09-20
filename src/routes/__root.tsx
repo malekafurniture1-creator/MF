@@ -94,6 +94,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: "author", content: "Maleka Furnitures" },
       { property: "og:title", content: "Maleka Furnitures — Hyderabad" },
+      { property: "og:site_name", content: "Maleka Furnitures" },
       {
         property: "og:description",
         content:
@@ -118,8 +119,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500&display=swap",
       },
       { rel: "icon", href: "/favicon.ico", sizes: "any" },
-      { rel: "icon", type: "image/png", href: "/favicon-32x32.png", sizes: "32x32" },
-      { rel: "icon", type: "image/png", href: "/favicon-16x16.png", sizes: "16x16" },
+      { rel: "icon", type: "image/png", href: "/favicon-96x96.png", sizes: "96x96" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
       { rel: "manifest", href: "/site.webmanifest" },
     ],

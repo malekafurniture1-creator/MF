@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, MapPin, MessageCircle, Phone, Star } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
 import { Footer } from "@/components/site/Footer";
@@ -21,10 +22,11 @@ import {
   heroMobileMp4,
   heroPoster,
 } from "@/lib/local-assets";
-import { CATEGORIES } from "@/lib/products";
+import { fetchCategories } from "@/lib/products";
 
 export const Route = createFileRoute("/")({
   head: () => ({
+    links: [{ rel: "canonical", href: "https://malekafurnitures.com/" }],
     meta: [
       { title: "Maleka Furnitures — Furniture Showroom in Moghalpura, Hyderabad" },
       {
@@ -85,6 +87,10 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories", "public"],
+    queryFn: () => fetchCategories(),
+  });
   useEffect(() => {
     if (typeof navigator !== 'undefined' && (navigator as any).connection?.saveData) {
       videoRef.current?.pause();
@@ -174,7 +180,7 @@ function Home() {
             </Link>
           </div>
           <div className="no-scrollbar -mx-5 mt-7 flex gap-3 overflow-x-auto px-5 pb-2 md:mx-0 md:px-0">
-            {CATEGORIES.map((category) => (
+            {categories.map(({ name: category }) => (
               <Link
                 key={category}
                 to="/explore"
