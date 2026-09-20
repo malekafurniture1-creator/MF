@@ -64,9 +64,9 @@ export function Footer() {
           <Link to="/terms" className="block text-ink-foreground/80 hover:text-gold">
             Terms & Conditions
           </Link>
-          <Link to="/owner" className="block text-ink-foreground/50 hover:text-gold mt-6">
+          {/* <Link to="/owner" className="block text-ink-foreground/50 hover:text-gold mt-6">
             Owner login
-          </Link>
+          </Link> */}
         </div>
       </div>
 
