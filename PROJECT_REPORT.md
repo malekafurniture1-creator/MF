@@ -19,7 +19,7 @@ The experience has two distinct sides:
 1. The public website presents the brand, collections, active offers, wedding furniture packages, product catalogue, product details, map, and enquiry actions.
 2. The owner dashboard is an authenticated workspace intended for Maleka staff to publish products and offers, manage imagery, and control visibility.
 
-The site already contains the public user interface and the initial Supabase data model. The new account bootstrap script is at [supabase/MALEKA_FRESH_SETUP.sql](supabase/MALEKA_FRESH_SETUP.sql). It creates the complete initial database, a temporary private storage bucket, categories, and security policies without adding fake catalogue items. Production image delivery has now been proven separately through a private Backblaze B2 bucket and Cloudflare Worker proxy; application upload integration is the next development step.
+The site contains the public user interface, Supabase data model, authenticated owner controls, a private Backblaze B2 image route through a Cloudflare Worker proxy, and the real 346-record Maleka catalogue import. The new-account bootstrap script remains at [supabase/MALEKA_FRESH_SETUP.sql](supabase/MALEKA_FRESH_SETUP.sql). A complete image-pipeline history and the verified import outcome are recorded in section 8A.
 
 ---
 
@@ -142,7 +142,7 @@ Each product title opens `/product/$id`. The page has:
 - Call showroom action
 - Graceful unavailable/empty state
 
-The database supports up to four ordered product images. The current public detail component shows the primary product image; expanding it to render the stored gallery is a clearly scoped next UI task after the database is connected and populated.
+The database supports up to four ordered product images. The public detail component renders the ordered gallery, including thumbnail selection and the primary image.
 
 ### Showroom and visit pages
 
@@ -212,7 +212,7 @@ The database also supports headline, supporting copy, original price, offer pric
 
 ### Category maintenance
 
-The dashboard currently presents the defined category groups and their active state. The underlying database supports category image, visibility, and sort order. Editing those fields in the dashboard is still pending; it should be implemented before day-to-day category administration begins.
+Category visibility is persisted in `categories.visible`. The owner eye-toggle updates that shared value, and the homepage and public Explore page load only visible categories. This makes hide/show behaviour consistent across devices after refresh.
 
 ### Known dashboard work remaining
 
@@ -322,15 +322,15 @@ The live components are:
 
 No B2 credentials are present in React, Supabase browser variables, or Git. The Worker obtains private B2 objects server-side and returns only the image response to visitors.
 
-### Current application state
+### Legacy compatibility storage and current production route
 
-The fresh setup script still creates a private Supabase Storage bucket named `product-images`, and the current React uploader still writes there. This is temporary compatibility storage; it is not the final production image route. The product resolver already passes through direct HTTPS URLs, so a Worker image URL can be saved in `products.image_url` without changing the table schema.
+The fresh setup script still creates a private Supabase Storage bucket named `product-images` for compatibility with earlier paths. It is not the production route for the imported catalogue. The current owner product flow uploads through the protected `/api/b2-upload` endpoint and stores the returned Cloudflare Worker image URL in `products.image_url` and `product_images.image_url`.
 
 The crop tool produces WebP before upload and targets 1200 × 1500 pixels (4:5). This is a sensible maximum presentation size for product cards and detail views while keeping mobile delivery manageable.
 
-### B2 application-integration work still pending
+### B2 application integration: implemented
 
-The verified Worker currently reads private B2 files; the React app and owner dashboard have not yet been switched to upload, replace, and delete through it. The intended production flow is:
+The application provides authenticated upload/delete handlers and the owner dashboard uses them for product media. The established flow is:
 
 ```text
 Owner selects image
@@ -343,7 +343,7 @@ Owner selects image
   → URL/path is saved to Supabase product/category/offer record
 ```
 
-Recommended object-key shape:
+The owner dashboard creates collision-safe keys under the following shape; the bulk Stage 3 import uses deterministic keys in the same product namespace:
 
 ```text
 products/<product-id>/<position>-<random-id>.webp
@@ -355,7 +355,90 @@ The database already accepts either a storage path or a direct HTTP(S) URL, whic
 
 ### Important integration note
 
-The current Offer component expects a directly displayable image URL, while the initial offer uploader stores a private Supabase Storage path. Offer uploads should be migrated to store the Worker image URL before live offers are activated.
+The Offer component expects a directly displayable image URL. Offer uploads are converted to WebP and use the B2 upload endpoint; live offer URL behaviour should remain part of release QA.
+
+---
+
+### 8A. Product-image pipeline history and verified import status
+
+This is the operational record for the MALEKA image pipeline. It distinguishes the image-processing workspace from this application repository and preserves the difference between original inventory, final Stage 2 output, and the Stage 3 production import.
+
+#### Separate workspaces
+
+| Workspace | Purpose |
+|---|---|
+| `E:\Projects\LEADS\mf-pro` | Stage 2 source organisation, OpenAI image processing, captions, batch state, and enhancement output. |
+| `E:\Projects\LEADS\12.HILINE` | The MALEKA production application, import scripts, generated local plan, Supabase metadata, and B2 delivery integration. |
+
+Stage 2 was intentionally run outside this production repository. A temporary local copy of the final assets exists at `img_upload/` in this repository to support validation/import; that directory is Git-ignored and must not be committed. Original `OUTPUT` images and enhanced source images are never modified by the Stage 3 scripts.
+
+#### Stage 1 inventory and final Stage 2 source of truth
+
+The manually organised original inventory was: Beds 124, Sofas 119, Wedding Sets 38, Mirrors 29, Shoe Racks & Storage 20, Dining 14, Wardrobes 12, and Seating 6.
+
+After recovery, validation, and removal of non-final material, the final Stage 2 dataset became:
+
+| Category | Final enhanced records |
+|---|---:|
+| Beds | 124 |
+| Dining | 14 |
+| Mirrors | 29 |
+| Shoe Racks & Storage | 20 |
+| Sofas | 115 |
+| Wardrobes | 12 |
+| Wedding Sets | 32 |
+| **Total** | **346** |
+
+There are no Seating records in the final 346-item import set. These final counts—not the earlier intake counts—are the Stage 3 source of truth.
+
+#### Stage 2 enhancement process
+
+Stage 2 used the OpenAI Batch API with GPT Image 2 (`gpt-image-2`) at medium quality and category-specific prompts. The pipeline corrected orientation, removed distracting background material, preserved genuine furniture identity/materials/proportions, and permitted reconstruction only where visible evidence reliably supported it. It explicitly prohibited generic replacement furniture, redesign, changed proportions, invented components, or changed materials/colours.
+
+Final enhanced outputs were RGB JPEGs, intelligently cropped to exact 4:5 at 1600 × 2000. The Stage 3 importer converts these source-preserving enhanced files in memory to the application's 1200 × 1500 WebP production format; it does not overwrite the JPEG source assets.
+
+Wedding Sets used a dedicated prompt that preserves the complete visible composition: bed/headboard, side tables, dressing/wardrobe/mirror, stools or benches, storage, panels, carvings, grain/veneer, upholstery, colours, hardware, and matching design language. Dining, Mirrors, Shoe Racks & Storage, and Wardrobes each used corrected dedicated scripts with category-specific state/error files and a shared-manifest lock for safe concurrent caption updates.
+
+#### Batch processing, credit incident, and recovery
+
+- **Beds:** 124 images began synchronously; 115 succeeded and 9 were deferred by prepaid-credit exhaustion. The recovery image batch `batch_6aaea29c306881908f321e2c03a0dfc1` completed 9/9 with no failures. The last known Beds caption batch state was `batch_6aaea6575e3c8190a3b952e3f9b125da`, `validating`, 0/0 complete; it must not be represented as independently confirmed complete.
+- **Sofas:** the final 115-image image batch `batch_6aaeaa5152748190838c2b6f79a31999` completed 115/115 with no failures. A later local `NameError: save_final_image is not defined` was a script recovery bug, not an OpenAI image-processing failure. Restoring `save_final_image()` allowed valid existing batch results to be saved without submitting another Sofa batch. The function converts to RGB, corrects/crops 4:5, resizes to 1600 × 2000, and saves JPEG quality 95.
+- **API billing incident:** HTTP 429 resulted from exhausted prepaid OpenAI API credit, not an application integration failure. Credits were added (including a further $5 purchase); an exposed API key was revoked/replaced; OpenAI SDK connectivity was later verified. API billing was separate from the ChatGPT subscription.
+- **Accidental deletion/recovery:** two enhanced images were accidentally deleted during the workflow and restored. They are included in the final inventory and must not be reported as permanently missing.
+
+Category scripts use resumable state/error files such as `stage2_batch_state_Dining.json` and `stage2_errors_Dining.json`; the shared `stage2_manifest.json` records source paths, categories, captions, and processing metadata.
+
+#### Stage 3 validation and deterministic plan
+
+Before the production import, the following read-only preparation assets were created:
+
+- [scripts/validate-maleka-import.mjs](scripts/validate-maleka-import.mjs)
+- `img_upload/import_plan.json` (local, Git-ignored)
+
+Validation scanned final enhanced files, verified dimensions/aspect/format/size, matched the manifest, verified the seven existing Supabase categories, generated deterministic product UUIDs and B2 keys, and checked existing Supabase/B2 identity conflicts. It performed no upload or database write.
+
+The final validation result was **346 valid, 0 blocked, 0 identity conflicts, 0 existing Supabase UUID conflicts, and 0 existing B2 object-key conflicts**. It produced eight non-blocking warnings across four duplicated captions. Those eight records deliberately remain separate products: no product/view grouping was inferred from caption similarity.
+
+The planned key shape is deterministic: `products/<planned-product-uuid>/0-<source-basename>.webp`. Each record plans one primary image at `sort_order = 0`; an importer-derived deterministic primary-image UUID makes retry handling safe.
+
+#### Stage 3 production import: evidence-backed current state
+
+**Status:** Stage 2 is complete. Stage 3 validation is complete. Stage 3 production import has also been executed successfully.
+
+The historical brief that originally accompanied this report says “Stage 3 production import not yet executed.” That statement is stale and conflicts with repository history, the committed [scripts/import-maleka-products.mjs](scripts/import-maleka-products.mjs), and the verified production result. The factual import record is:
+
+1. A required dry run passed **346/346 ready, 0 blockers**.
+2. The first live pass created 342 B2 objects, 342 hidden Supabase products, and 342 primary `product_images` rows. Four B2/network uploads failed transiently; no product/image rows were created for those four.
+3. A resumable second pass verified the completed records, uploaded the remaining four objects, and created the remaining four products and primary image records with zero failures.
+4. A final read-only dry run reported 346/346 ready, 0 blockers, and 0 remaining uploads/products/image rows required.
+
+Final import totals are **346 B2 WebP uploads, 346 initially hidden/draft Supabase products, and 346 primary `product_images` rows**, with deterministic IDs and object keys preserved. Products may subsequently be made public individually by the owner; current publication state is an operational database state, not a change to the import record.
+
+The importer is intentionally idempotent/resumable. It hashes the planned WebP output, rejects a pre-existing B2 key with different content, rejects conflicting deterministic UUID data, skips matching completed objects/rows, and can safely resume a partial run. It does not alter Stage 2 source files, enhanced images, or `stage2_manifest.json`.
+
+#### Current next step
+
+There is no remaining bulk Stage 3 import to perform. The next operational work is catalogue QA and publishing: review names/categories, choose featured items, set `visible = true` for approved products, test public product pages and mobile delivery, and retain the deterministic plan/import scripts for audit or recovery. Do not create a second plan, re-run Stage 2 enhancement, or infer multi-image product groupings without new source evidence.
 
 ---
 
@@ -384,7 +467,7 @@ VITE_SUPABASE_PROJECT_ID=<project ID>
 
 - Create the first owner automatically (doing that safely requires a real Auth user UUID)
 - Add fictional products, offers, or prices
-- Configure the B2 upload/delete endpoints or connect the React dashboard to them
+- Configure deployment environment variables for the implemented B2 upload/delete endpoints
 - Publish a production domain
 
 ---
@@ -480,9 +563,8 @@ The build has passed after the current changes.
 
 ### Before launch
 
-- Run fresh Supabase setup
-- Create and authorize one owner account
-- Add actual product data and real Maleka photography
+- Confirm the existing Supabase setup and owner role
+- Verify the imported catalogue and approve publication state
 - Test every public and owner workflow
 - Configure production Supabase variables
 - Verify WhatsApp number, phone links, map, address, and hours on mobile
@@ -490,7 +572,7 @@ The build has passed after the current changes.
 
 ### Backblaze B2 / Cloudflare Worker phase
 
-The private-image read path is already live and verified through `maleka-image-proxy`. The remaining implementation is an authenticated management API on the Worker that:
+The private-image read path is live and verified through `maleka-image-proxy`. The application-side authenticated management handlers are implemented and:
 
 - Receives crop-processed uploads from the owner dashboard
 - Checks a valid Supabase JWT and owner role
@@ -569,14 +651,10 @@ These can be added later without replacing the core catalogue architecture.
 
 ## 16. Recommended next implementation milestones
 
-1. **Connect Supabase:** run the fresh script, set environment variables, create the owner role, and validate one real product record.
-2. **Connect owner uploads to B2:** add protected Worker upload, replace, and delete endpoints; store returned Worker URLs in Supabase. Do not expose B2 credentials or upload all catalogue images manually before this is ready.
-3. **Finalize B2 object keys:** adopt collision-safe paths such as `products/<product-id>/<position>-<random-id>.webp`, `offers/<offer-id>/<random-id>.webp`, and `categories/<category-id>/<random-id>.webp`.
-4. **Finish dashboard controls:** searchable product list; category filter; hide/show switch; per-image reorder/remove/primary controls; category edit/hide/order form; offer supporting-copy/price/order fields.
-5. **Render product galleries:** load ordered `product_images` in the product detail route and provide thumbnail selection.
-6. **Populate real catalogue:** add actual Maleka photography, correct names, descriptions, categories, tags, visibility, and display order. Do not fabricate 250–300 product records.
-7. **SEO completion:** production canonical URL, Open Graph image, sitemap, robots rules, structured local-business JSON-LD, and Google Business Profile link.
-8. **Final QA:** test desktop/tablet/mobile, Android/iOS WhatsApp links, map directions, admin authorization, empty states, slow image loading, and no-active-offer behaviour.
+1. **Catalogue QA and publication:** review the imported product names/categories, make approved products visible, and choose featured items.
+2. **Finish dashboard controls:** complete category edit/order and remaining offer-management ergonomics.
+3. **SEO and launch QA:** verify the canonical production domain, Open Graph sharing image, sitemap/robots delivery, mobile enquiry flows, map directions, image delivery, and owner authorization after deployment.
+4. **Operational backup:** retain the ignored Stage 2 asset copy and deterministic plan outside Git according to the business backup policy.
 
 ---
 
@@ -586,17 +664,17 @@ These can be added later without replacing the core catalogue architecture.
 |---|---|---|
 | Maleka branding/contact/rating | Implemented | Uses real supplied location, phone numbers, hours, rating and review count. |
 | Hero background video | Implemented | Uses 4 optimized responsive formats (WebM/MP4) and respects Save-Data. |
-| Public homepage/catalogue/detail | Implemented | Public catalogue requires real Supabase data. |
+| Public homepage/catalogue/detail | Implemented | Real imported catalogue data is present; publication is controlled by product visibility. |
 | Wedding set routing | Implemented | Routes to `Wedding Sets` filter. |
 | Satellite map | Implemented | Google map embed uses satellite parameter. |
 | Product crop + WebP | Implemented | Fixed 4:5 browser crop; accepts four files. |
-| Supabase schema and RLS | Ready | Categories are seeded; products, product images and offers await real catalogue data. |
-| Product gallery database | Ready | Detail gallery display remains to be wired. |
-| Full dashboard search/filter/hide UI | Pending | Schema supports it; UI is incomplete. |
-| Full category editor UI | Pending | Schema supports it; UI is incomplete. |
+| Supabase schema and RLS | Implemented | Real catalogue records and ordered primary product images are present. |
+| Product gallery database/UI | Implemented | Ordered `product_images` are rendered on the public product detail page. |
+| Dashboard search/filter/hide UI | Implemented | Product visibility/featured controls exist; category visibility persists through Supabase. |
+| Full category editor UI | Partial | Visibility is shared/persisted; image/order editing remains a future enhancement. |
 | B2 private bucket | Implemented | `maleka-furniture-images`; US East; private; encryption enabled; Object Lock disabled. |
 | B2 Worker image retrieval | Implemented and verified | `maleka-image-proxy` streams `/images/logo.webp` from the private bucket; B2 secrets remain in Cloudflare. |
-| B2 admin upload/delete integration | Pending | Current owner uploader still writes to temporary Supabase Storage. |
-| Real inventory and photography | Pending | Must be supplied by Maleka; no placeholder inventory should be treated as real. |
+| B2 admin upload/delete integration | Implemented | Protected B2 handlers are used by owner product/offer media flows. |
+| Real inventory and photography | Imported | 346 Stage 2 enhanced source records were imported through the deterministic Stage 3 process. |
 
 This document is intended to be the operational picture of the project: what the showroom site is, how a visitor and owner move through it, where data is stored, what is protected, and which next steps unlock production operation.
