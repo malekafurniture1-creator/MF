@@ -200,7 +200,7 @@ export async function fetchExplorePage({
   category,
   search,
   cursor,
-  hiddenCategories,
+  visibleCategories,
 }: {
   category?: string | undefined;
   search?: string | undefined;
