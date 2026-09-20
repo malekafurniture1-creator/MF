@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "cf:types": "wrangler types",
+    "deploy": "wrangler deploy",
     "lint": "eslint .",
     "format": "prettier --write .",
     "maleka:validate": "node scripts/validate-maleka-import.mjs",
