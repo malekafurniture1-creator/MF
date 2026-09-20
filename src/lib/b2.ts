@@ -6,26 +6,25 @@ import { createClient } from "@supabase/supabase-js";
  * Secrets are read from environment variables; they must be available only on the server.
  */
 
-function getEnv(name: string, fallback = ""): string {
+function getEnv(name: string): string {
   if (typeof process !== "undefined" && process.env && process.env[name]) {
     return process.env[name]!;
   }
   if (typeof import.meta !== "undefined" && (import.meta as any).env && (import.meta as any).env[name]) {
     return (import.meta as any).env[name];
   }
-  return fallback;
+  return "";
 }
 
 const SUPABASE_URL = () =>
   getEnv("SUPABASE_URL") ||
-  getEnv("VITE_SUPABASE_URL", "https://widcvaewssipsgactrss.supabase.co");
+  getEnv("VITE_SUPABASE_URL");
 
 const SUPABASE_PUBLISHABLE_KEY = () =>
   getEnv("SUPABASE_PUBLISHABLE_KEY") ||
-  getEnv("VITE_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_9-eWEAFnPtWrDiO08HJGNQ__m7C7xsP");
+  getEnv("VITE_SUPABASE_PUBLISHABLE_KEY");
 
-const B2_ENDPOINT = () => getEnv("B2_ENDPOINT", "https://s3.us-east-005.backblazeb2.com");
-const B2_BUCKET = () => getEnv("B2_BUCKET_NAME", "maleka-furniture-images");
+const B2_BUCKET = () => getEnv("B2_BUCKET_NAME");
 const B2_KEY_ID = () => getEnv("B2_KEY_ID");
 const B2_APP_KEY = () => getEnv("B2_APPLICATION_KEY");
 
@@ -105,6 +104,9 @@ async function getB2Auth() {
 
   if (!bucketId) {
     const targetBucketName = B2_BUCKET();
+    if (!targetBucketName) {
+      throw new Error("B2_BUCKET_NAME must be configured on the server");
+    }
     const listResp = await fetch(`${storageApi.apiUrl}/b2api/v3/b2_list_buckets`, {
       method: "POST",
       headers: { Authorization: data.authorizationToken },
@@ -120,10 +122,14 @@ async function getB2Auth() {
   // Invalidate upload URL cache when we re-auth
   cachedUploadUrl = null;
 
+  if (!bucketId) {
+    throw new Error("Could not resolve the configured B2 bucket");
+  }
+
   cachedAuth = {
     apiUrl: storageApi.apiUrl,
     authorizationToken: data.authorizationToken,
-    bucketId: bucketId || "e6124c629c848177ac000c1b",
+    bucketId,
     expiresAt: now + 20 * 3600 * 1000,
   };
 
@@ -273,6 +279,9 @@ export async function verifyOwner(token: string): Promise<{ userId: string }> {
 
   const supabaseUrl = SUPABASE_URL();
   const publishableKey = SUPABASE_PUBLISHABLE_KEY();
+  if (!supabaseUrl || !publishableKey) {
+    throw new Error("Supabase server configuration is missing");
+  }
 
   const supabase = createClient(supabaseUrl, publishableKey);
   const { data: authData, error: authErr } = await supabase.auth.getUser(token);

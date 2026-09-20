@@ -5,6 +5,7 @@
 //     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { cloudflare } from "@cloudflare/vite-plugin";
 import type { Plugin } from "vite";
 
 function b2UploadDevPlugin(): Plugin {
@@ -71,7 +72,7 @@ function b2UploadDevPlugin(): Plugin {
 
 export default defineConfig({
   vite: {
-    plugins: [b2UploadDevPlugin()],
+    plugins: [cloudflare({ viteEnvironment: { name: "ssr" } }), b2UploadDevPlugin()],
   },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
