@@ -215,7 +215,7 @@ function Home() {
           />
           <FeaturedFrame
             name="Wardrobe"
-            category="Commercial"
+            category="Wardrobes"
             image={showcaseCabinet}
             className="order-2 aspect-[3/4] md:order-none md:col-span-1 md:col-start-1 md:row-span-2 md:row-start-1 md:aspect-auto"
             imageClassName="object-cover object-center"
@@ -245,7 +245,7 @@ function Home() {
           />
           <FeaturedFrame
             name="Mirrored Dressing Table"
-            category="Wardrobes"
+            category="Mirrors"
             image={dressingWardrobe}
             className="order-6 col-span-2 aspect-[16/11] md:order-none md:col-span-1 md:col-start-4 md:row-start-2 md:aspect-auto md:h-[92%]"
             imageClassName="object-cover object-center"
