@@ -9,6 +9,7 @@ import { FurnitureSilhouette } from "@/components/site/FurnitureSilhouette";
 import { whatsappUrl } from "@/lib/business";
 import { fetchCategories, fetchExplorePage, type ProductCursor } from "@/lib/products";
 import { cn } from "@/lib/utils";
+import { SITE_URL } from "@/lib/site";
 
 type Search = { category?: string | undefined };
 
@@ -18,19 +19,20 @@ export const Route = createFileRoute("/explore")({
       ? { category: search["category"] }
       : {},
   head: () => ({
-    links: [{ rel: "canonical", href: "https://malekafurnitures.com/explore" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/explore` }],
     meta: [
-      { title: "Explore the Collection — Maleka Furnitures Hyderabad" },
+      { title: "Explore the Collection — MALEKA Furnitures Hyderabad" },
       {
         name: "description",
         content:
-          "Browse sofas, beds, dining sets, wedding sets and storage at Maleka Furnitures in Moghalpura, Hyderabad.",
+          "Browse sofas, beds, dining sets, wedding sets and storage at MALEKA Furnitures in Moghalpura, Hyderabad.",
       },
-      { property: "og:title", content: "Explore the Collection — Maleka Furnitures" },
+      { property: "og:url", content: `${SITE_URL}/explore` },
+      { property: "og:title", content: "Explore the Collection — MALEKA Furnitures" },
       {
         property: "og:description",
         content:
-          "The full Maleka Furnitures catalogue, filterable by category, with direct enquiry.",
+          "The full MALEKA Furnitures catalogue, filterable by category, with direct enquiry.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -82,8 +84,8 @@ function Explore() {
             Everything currently on our showroom floor
           </h1>
           <p className="mt-5 max-w-lg text-sm leading-relaxed text-muted-foreground">
-            Pick a category, then send an enquiry for pricing, sizes and finish
-            options. we quote per piece.
+            Browse furniture in Hyderabad by category, then send an enquiry for
+            current pricing, sizes and finish options. We quote per piece.
           </p>
           
           <div className="mt-8 max-w-md">

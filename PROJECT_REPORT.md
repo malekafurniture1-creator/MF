@@ -1,11 +1,11 @@
-# Maleka Furnitures — Project Report and Technical Handover
+# MALEKA Furnitures — Project Report and Technical Handover
 
 **Project type:** Responsive furniture-showroom catalogue and enquiry website  
-**Business:** Maleka Furnitures  
+**Business:** MALEKA Furnitures
 **Location:** 18-7-198/A/3, Murad Mahal, Sultan Shahi Road, Moghalpura, Hyderabad  
 **Customer contact:** +91 93910 33589 / +91 89853 14344  
 **Opening hours:** Mon–Sat, 9:00 AM–10:00 PM; Sun, 9:00 AM–6:00 PM  
-**Google rating shown:** 3.7 from 147 reviews  
+**Google rating shown:** approximately 3.7 from 149 reviews
 **Commercial model:** Physical showroom, direct enquiries; no basket, checkout, online payment, or inventory commitment.
 
 ---
@@ -34,7 +34,7 @@ The visual identity uses the supplied Maleka crest logo (`src/assets/logo.webp`)
 ### Customer trust signals
 
 - Google rating: **3.7**
-- Google review count: **147**
+- Google review count: **149**
 - Established: **2003** (used in brand-story copy)
 - Physical presence: Moghalpura, Hyderabad
 - Direct phone and WhatsApp access
@@ -676,5 +676,32 @@ These can be added later without replacing the core catalogue architecture.
 | B2 Worker image retrieval | Implemented and verified | `maleka-image-proxy` streams `/images/logo.webp` from the private bucket; B2 secrets remain in Cloudflare. |
 | B2 admin upload/delete integration | Implemented | Protected B2 handlers are used by owner product/offer media flows. |
 | Real inventory and photography | Imported | 346 Stage 2 enhanced source records were imported through the deterministic Stage 3 process. |
+
+---
+
+## 18. SEO, AEO and GEO status
+
+| Area | Status | Website implementation |
+|---|---|---|
+| SEO | Complete | Page titles, descriptions, canonical URLs, Open Graph metadata, `robots.txt`, and the sitemap are present. All indexable URLs use the canonical `https://malekafurnitures.com` origin. Product pages have their own title, description, canonical URL, and social image. |
+| AEO | Complete | The homepage has a crawlable FAQ section with direct factual answers. The site publishes consistent FurnitureStore and FAQPage structured data; product pages publish Product and BreadcrumbList structured data. |
+| GEO (website-side) | Complete | The site consistently identifies MALEKA Furnitures, the exact Moghalpura showroom location, Hyderabad, Telangana, ready-made and custom furniture, delivery, installation, and the actual contact paths. Categories, products, and enquiry routes are internally linked. |
+
+### Structured-data and content guardrails
+
+- The public Google rating remains accurately displayed as approximately **3.7 from 149 reviews**.
+- Review or AggregateRating schema is intentionally not published for this business. The website does not create self-serving review markup or unsupported testimonials.
+- No product prices, claims of stock, unverified service specifics, invented service areas, social-profile URLs, awards, or directory links are published.
+- FAQ answers direct pricing enquiries to WhatsApp, phone, or the showroom; calling remains a secondary option alongside the existing enquiry and visit paths.
+
+### Ongoing external GEO checklist (post-launch)
+
+Website-side GEO cannot create or control off-site entity signals. After launch, maintain the same business name, exact address, phone numbers, hours, and category information on:
+
+- Google Business Profile
+- Justdial and other genuine business-directory listings
+- Official social profiles, if and when they are used
+
+Continue to collect only genuine customer reviews, correct any inconsistent third-party listing details, and pursue legitimate local mentions rather than fabricated citations or backlinks.
 
 This document is intended to be the operational picture of the project: what the showroom site is, how a visitor and owner move through it, where data is stored, what is protected, and which next steps unlock production operation.

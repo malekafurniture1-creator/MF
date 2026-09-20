@@ -86,19 +86,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Maleka Furnitures — Moghalpura, Hyderabad" },
+      { title: "MALEKA Furnitures — Moghalpura, Hyderabad" },
       {
         name: "description",
         content:
-          "Maleka Furnitures, Moghalpura, Hyderabad. Sofas, beds, dining sets, wedding furniture and storage.",
+          "MALEKA Furnitures, Moghalpura, Hyderabad. Sofas, beds, dining sets, wedding furniture and storage.",
       },
-      { name: "author", content: "Maleka Furnitures" },
-      { property: "og:title", content: "Maleka Furnitures — Hyderabad" },
-      { property: "og:site_name", content: "Maleka Furnitures" },
+      { name: "author", content: "MALEKA Furnitures" },
+      { property: "og:title", content: "MALEKA Furnitures — Hyderabad" },
+      { property: "og:site_name", content: "MALEKA Furnitures" },
       {
         property: "og:description",
         content:
-          "A trusted furniture showroom in Moghalpura, Hyderabad. Browse the collection and enquire directly.",
+          "A furniture showroom in Moghalpura, Hyderabad. Browse the collection and enquire directly.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

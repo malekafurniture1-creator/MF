@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { Footer } from "@/components/site/Footer";
 import { Header } from "@/components/site/Header";
 import { FurnitureSilhouette } from "@/components/site/FurnitureSilhouette";
+import { FaqSection } from "@/components/site/FaqSection";
 import { FloatingOfferButton, OfferSection } from "@/components/site/OfferSection";
 import { WeddingSection } from "@/components/site/WeddingSection";
 import { BUSINESS, mapsUrl, telUrl, whatsappUrl } from "@/lib/business";
@@ -23,19 +24,21 @@ import {
   heroPoster,
 } from "@/lib/local-assets";
 import { fetchCategories } from "@/lib/products";
+import { faqPageSchema, localBusinessSchema } from "@/lib/structured-data";
+import { SITE_URL } from "@/lib/site";
 
 export const Route = createFileRoute("/")({
   head: () => ({
-    links: [{ rel: "canonical", href: "https://malekafurnitures.com/" }],
+    links: [{ rel: "canonical", href: `${SITE_URL}/` }],
     meta: [
-      { title: "Maleka Furnitures — Furniture Showroom in Moghalpura, Hyderabad" },
+      { title: "MALEKA Furnitures — Furniture Showroom in Moghalpura, Hyderabad" },
       {
         name: "description",
         content:
-          "Maleka Furnitures in Moghalpura, Hyderabad. Sofas, beds, dining sets, wedding packages and storage furniture. Established 2003.",
+          "MALEKA Furnitures in Moghalpura, Hyderabad. Ready-made and custom furniture, including sofas, beds, dining sets, wedding sets and storage.",
       },
-      { property: "og:url", content: "https://malekafurnitures.com/" },
-      { property: "og:title", content: "Maleka Furnitures — Hyderabad" },
+      { property: "og:url", content: `${SITE_URL}/` },
+      { property: "og:title", content: "MALEKA Furnitures — Hyderabad" },
       {
         property: "og:description",
         content:
@@ -47,37 +50,7 @@ export const Route = createFileRoute("/")({
         name: "script:ld+json",
         content: JSON.stringify({
           "@context": "https://schema.org",
-          "@type": "FurnitureStore",
-          name: "Maleka Furnitures",
-          url: "https://malekafurnitures.com",
-          telephone: "+919391033589",
-          address: {
-            "@type": "PostalAddress",
-            streetAddress: "18-7-198/A/3, Murad Mahal, Sultan Shahi Road",
-            addressLocality: "Moghalpura",
-            addressRegion: "Hyderabad",
-            addressCountry: "IN",
-          },
-          aggregateRating: {
-            "@type": "AggregateRating",
-            ratingValue: "3.7",
-            reviewCount: "147",
-          },
-          openingHoursSpecification: [
-            {
-              "@type": "OpeningHoursSpecification",
-              dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-              opens: "09:00",
-              closes: "22:00",
-            },
-            {
-              "@type": "OpeningHoursSpecification",
-              dayOfWeek: ["Sunday"],
-              opens: "09:00",
-              closes: "18:00",
-            },
-          ],
-          priceRange: "₹₹",
+          "@graph": [localBusinessSchema, faqPageSchema],
         }),
       },
     ],
@@ -270,6 +243,8 @@ function Home() {
       </section>
 
       <WeddingSection />
+
+      <FaqSection />
 
       {/* Showroom strip */}
       <section className="bg-ink text-ink-foreground">

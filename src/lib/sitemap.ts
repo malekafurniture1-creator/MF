@@ -1,5 +1,7 @@
 ﻿import { createClient } from "@supabase/supabase-js";
 
+import { SITE_URL } from "@/lib/site";
+
 function getEnv(name: string, fallback = ""): string {
   if (typeof process !== "undefined" && process.env && process.env[name]) {
     return process.env[name]!;
@@ -10,12 +12,10 @@ function getEnv(name: string, fallback = ""): string {
   return fallback;
 }
 
-const BASE_URL = "https://malekafurnitures.com";
-
 const STATIC_URLS = [
-  { loc: `${BASE_URL}/`, priority: "1.0", changefreq: "daily" },
-  { loc: `${BASE_URL}/explore`, priority: "0.9", changefreq: "daily" },
-  { loc: `${BASE_URL}/visit`, priority: "0.8", changefreq: "monthly" },
+  { loc: `${SITE_URL}/`, priority: "1.0", changefreq: "daily" },
+  { loc: `${SITE_URL}/explore`, priority: "0.9", changefreq: "daily" },
+  { loc: `${SITE_URL}/visit`, priority: "0.8", changefreq: "monthly" },
 ];
 
 export async function handleSitemapRequest(): Promise<Response> {
@@ -36,7 +36,7 @@ export async function handleSitemapRequest(): Promise<Response> {
       if (data) {
         productUrls = data.map(
           (p: { id: string; updated_at: string }) =>
-            `  <url>\n    <loc>${BASE_URL}/product/${p.id}</loc>\n    <lastmod>${(p.updated_at ?? "").slice(0, 10)}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>`
+            `  <url>\n    <loc>${SITE_URL}/product/${p.id}</loc>\n    <lastmod>${(p.updated_at ?? "").slice(0, 10)}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>`
         );
       }
     } catch {

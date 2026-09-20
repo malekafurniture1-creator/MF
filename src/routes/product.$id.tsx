@@ -8,6 +8,8 @@ import { Header } from "@/components/site/Header";
 import { fetchProduct } from "@/lib/products";
 import { productEnquiryUrl, telUrl } from "@/lib/business";
 import { cn } from "@/lib/utils";
+import { productPageSchema } from "@/lib/structured-data";
+import { SITE_URL } from "@/lib/site";
 
 export const Route = createFileRoute("/product/$id")({
   loader: async ({ params: { id } }) => {
@@ -21,28 +23,29 @@ export const Route = createFileRoute("/product/$id")({
     if (!loaderData) {
       return {
         meta: [
-          { title: "Piece Unavailable — Maleka Furnitures" },
+          { title: "Piece Unavailable — MALEKA Furnitures" },
           { name: "robots", content: "noindex" },
         ],
       };
     }
     return {
-      links: [{ rel: "canonical", href: `https://malekafurnitures.com/product/${loaderData.id}` }],
+      links: [{ rel: "canonical", href: `${SITE_URL}/product/${loaderData.id}` }],
       meta: [
-        { title: `${loaderData.name} — Maleka Furnitures` },
+        { title: `${loaderData.name} — MALEKA Furnitures` },
         {
           name: "description",
-          content: loaderData.description || `Browse the ${loaderData.category} collection at Maleka Furnitures in Moghalpura, Hyderabad.`,
+          content: loaderData.description || `Browse the ${loaderData.category} collection at MALEKA Furnitures in Moghalpura, Hyderabad.`,
         },
-        { property: "og:url", content: `https://malekafurnitures.com/product/${loaderData.id}` },
-        { property: "og:title", content: `${loaderData.name} — Maleka Furnitures` },
+        { property: "og:url", content: `${SITE_URL}/product/${loaderData.id}` },
+        { property: "og:title", content: `${loaderData.name} — MALEKA Furnitures` },
         {
           property: "og:description",
-          content: loaderData.description || `Browse the ${loaderData.category} collection at Maleka Furnitures in Moghalpura, Hyderabad.`,
+          content: loaderData.description || `Browse the ${loaderData.category} collection at MALEKA Furnitures in Moghalpura, Hyderabad.`,
         },
         { property: "og:image", content: loaderData.image },
         { property: "og:type", content: "website" },
         { name: "twitter:card", content: "summary_large_image" },
+        { name: "script:ld+json", content: JSON.stringify(productPageSchema(loaderData)) },
       ],
     };
   },
