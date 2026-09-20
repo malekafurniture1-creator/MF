@@ -70,3 +70,5 @@ temp/
 # Miscellaneous generated assets
 public/build/
 static/
+
+img_upload/

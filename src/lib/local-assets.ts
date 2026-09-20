@@ -1,9 +1,9 @@
-import designerBed from "@/assets/designer-bed.png";
-import diningSet from "@/assets/dining-set.png";
+import designerBed from "@/assets/designer-bed.webp";
+import diningSet from "@/assets/dining-set.webp";
 import dressingWardrobe from "@/assets/dressing-wardrobe.webp";
 import logo from "@/assets/logo.webp";
-import rockingChair from "@/assets/Rocking chair.png";
-import sectionalSofa from "@/assets/sectional-sofa.png";
+import rockingChair from "@/assets/Rocking chair.webp";
+import sectionalSofa from "@/assets/sectional-sofa.webp";
 import showcaseCabinet from "@/assets/showcase-cabinet.webp";
 import storefront from "@/assets/storefront.png";
 import weddingSet1 from "@/assets/Wedding_set_1.png";
@@ -33,9 +33,9 @@ export {
 
 /** Maps local asset filenames to their bundled asset paths. */
 export const localAssetByFilename: Record<string, string> = {
-  "designer-bed.png": designerBed,
-  "dining-set.png": diningSet,
+  "designer-bed.webp": designerBed,
+  "dining-set.webp": diningSet,
   "dressing-wardrobe.webp": dressingWardrobe,
-  "sectional-sofa.png": sectionalSofa,
+  "sectional-sofa.webp": sectionalSofa,
   "showcase-cabinet.webp": showcaseCabinet,
 };

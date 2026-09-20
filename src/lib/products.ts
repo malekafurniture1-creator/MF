@@ -172,7 +172,7 @@ export async function fetchProduct(id: string): Promise<ProductWithImage | null>
   return product ?? null;
 }
 
-export type ProductCursor = { created_at: string; id: string };
+export type ProductCursor = { featured: boolean; created_at: string; id: string };
 
 export async function fetchExplorePage({
   category,
@@ -189,6 +189,7 @@ export async function fetchExplorePage({
     .from("products")
     .select("*")
     .eq("visible", true)
+    .order("featured", { ascending: false })
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(10);
@@ -200,8 +201,10 @@ export async function fetchExplorePage({
   }
   if (search?.trim()) query = query.ilike("name", `%${search.trim().replace(/[%_]/g, "\\$&")}%`);
   if (cursor) {
+    const withinFeaturedGroup =
+      `and(featured.eq.${cursor.featured},or(created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})))`;
     query = query.or(
-      `created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`,
+      cursor.featured ? `featured.eq.false,${withinFeaturedGroup}` : withinFeaturedGroup,
     );
   }
 
@@ -213,7 +216,7 @@ export async function fetchExplorePage({
   return {
     products,
     nextCursor: rows.length === 10 && last
-      ? { created_at: last.created_at, id: last.id }
+      ? { featured: last.featured, created_at: last.created_at, id: last.id }
       : undefined,
   };
 }
