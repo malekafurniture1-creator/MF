@@ -45,9 +45,9 @@ export function Header() {
           <a
             href={telUrl}
             className="inline-flex items-center gap-2 border border-foreground/80 px-4 py-2 text-[0.75rem] uppercase tracking-[0.18em] transition-colors hover:bg-foreground hover:text-background"
-          >
-            <Phone className="size-3.5" />
-            {BUSINESS.phoneDisplay}
+            >
+              <Phone className="size-3.5" />
+              Call
           </a>
         </nav>
 
@@ -79,7 +79,7 @@ export function Header() {
               className="mt-3 mb-3 inline-flex items-center justify-center gap-2 bg-foreground px-4 py-3 text-[0.75rem] uppercase tracking-[0.18em] text-background"
             >
               <Phone className="size-3.5" />
-              Call {BUSINESS.phoneDisplay}
+              Call
             </a>
           </nav>
         </div>

@@ -325,7 +325,7 @@ function Home() {
                 className="inline-flex items-center gap-2 bg-foreground px-6 py-3.5 text-[0.72rem] uppercase tracking-[0.2em] text-background"
               >
                 <Phone className="size-3.5" />
-                {BUSINESS.phoneDisplay}
+                Call
               </a>
               <Link
                 to="/visit"
