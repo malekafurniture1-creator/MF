@@ -7,7 +7,7 @@ import { Header } from "@/components/site/Header";
 import { ProductCard } from "@/components/site/ProductCard";
 import { FurnitureSilhouette } from "@/components/site/FurnitureSilhouette";
 import { whatsappUrl } from "@/lib/business";
-import { fetchCategories, fetchExplorePage, type ProductCursor } from "@/lib/products";
+import { CATEGORIES, fetchCategories, fetchExplorePage, type ProductCursor } from "@/lib/products";
 import { cn } from "@/lib/utils";
 import { SITE_URL } from "@/lib/site";
 
@@ -51,7 +51,17 @@ function Explore() {
     queryKey: ["categories", "public"],
     queryFn: () => fetchCategories(),
   });
-  const categories = categoryRecords.map((record) => record.name);
+  // The public catalogue has a deliberate display order independent of the
+  // database's sort_order. This lets the navigation be rearranged without
+  // modifying category records or their admin-managed ordering.
+  const categories = categoryRecords
+    .map((record) => record.name)
+    .sort((left, right) => {
+      const leftIndex = CATEGORIES.indexOf(left as (typeof CATEGORIES)[number]);
+      const rightIndex = CATEGORIES.indexOf(right as (typeof CATEGORIES)[number]);
+      return (leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex) -
+        (rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex);
+    });
   const selectedCategoryIsVisible = !category || categories.includes(category);
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ["explore-products", category ?? null, searchQuery.trim(), categories],

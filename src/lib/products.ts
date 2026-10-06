@@ -21,6 +21,7 @@ export type ProductWithImage = Product & {
 };
 
 export const CATEGORIES = [
+  "Wedding Sets",
   "Sofas",
   "Beds",
   "Dining",
@@ -30,7 +31,6 @@ export const CATEGORIES = [
   "Mirrors",
   "Study/Office",
   "Commercial",
-  "Wedding Sets",
   "Shoe Racks & Storage",
 ] as const;
 
