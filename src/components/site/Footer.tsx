@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { MapPin, MessageCircle, Phone, Star } from "lucide-react";
+import { Facebook, Instagram, MapPin, MessageCircle, Phone, Star, Youtube } from "lucide-react";
 
 import { BUSINESS, mapsUrl, telUrl, whatsappUrl } from "@/lib/business";
 import { logo } from "@/lib/local-assets";
@@ -18,6 +18,33 @@ export function Footer() {
             <Star className="size-4 fill-current" />
             {BUSINESS.rating} rated by customers
           </p>
+          <div className="mt-5 flex items-center gap-2" aria-label="Social media">
+            <a
+              href="https://www.instagram.com/maleka.furniture/?utm_source=ig_web_button_share_sheet"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Follow Maleka Furnitures on Instagram"
+              className="inline-flex size-9 items-center justify-center border border-white/20 text-ink-foreground/80 transition-colors hover:border-gold hover:text-gold"
+            >
+              <Instagram className="size-4" />
+            </a>
+            <span
+              role="img"
+              aria-label="Facebook page coming soon"
+              title="Facebook page coming soon"
+              className="inline-flex size-9 cursor-not-allowed items-center justify-center border border-white/10 text-ink-foreground/30"
+            >
+              <Facebook className="size-4" />
+            </span>
+            <span
+              role="img"
+              aria-label="YouTube channel coming soon"
+              title="YouTube channel coming soon"
+              className="inline-flex size-9 cursor-not-allowed items-center justify-center border border-white/10 text-ink-foreground/30"
+            >
+              <Youtube className="size-4" />
+            </span>
+          </div>
         </div>
 
         <div className="space-y-3 text-sm">

@@ -14,7 +14,6 @@ import {
   designerBed,
   diningSet,
   dressingWardrobe,
-  rockingChair,
   sectionalSofa as sofa,
   showcaseCabinet,
   storefront,
@@ -200,12 +199,12 @@ function Home() {
           <div className="gold-rule mt-6 w-40" />
         </div>
 
-        <div className="mt-12 grid grid-cols-2 gap-3 sm:gap-4 md:h-[690px] md:grid-cols-[minmax(0,1fr)_minmax(0,0.995fr)_minmax(0,0.995fr)_minmax(0,0.75fr)_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)_minmax(0,1.05fr)] md:gap-3 lg:h-[760px] lg:gap-4">
+        <div className="mt-12 grid grid-cols-2 gap-3 sm:gap-4 md:h-[690px] md:grid-cols-6 md:grid-rows-[minmax(0,1fr)_minmax(0,1.05fr)] md:gap-3 lg:h-[760px] lg:gap-4">
           <FeaturedFrame
             name="L-Shaped Sectional Sofa"
             category="Sofas"
             image={sofa}
-            className="order-1 col-span-2 aspect-[16/10] md:order-none md:col-span-3 md:col-start-2 md:row-start-1 md:aspect-auto"
+            className="order-1 col-span-2 aspect-[16/10] md:order-none md:col-span-4 md:col-start-2 md:row-start-1 md:aspect-auto"
             imageClassName="object-cover object-center"
             priority
           />
@@ -221,7 +220,7 @@ function Home() {
             name="Mirrored Dressing Table"
             category="Dressing Table"
             image={dressingWardrobe}
-            className="order-3 aspect-[3/4] md:order-none md:col-span-1 md:col-start-5 md:row-span-2 md:row-start-1 md:aspect-auto"
+            className="order-3 aspect-[3/4] md:order-none md:col-span-1 md:col-start-6 md:row-span-2 md:row-start-1 md:aspect-auto"
             imageClassName="object-cover object-center"
             bookend
           />
@@ -229,21 +228,14 @@ function Home() {
             name="Designer Bed"
             category="Beds"
             image={designerBed}
-            className="order-4 aspect-[4/3] md:order-none md:col-span-1 md:col-start-2 md:row-start-2 md:aspect-auto"
+            className="order-4 aspect-[4/3] md:order-none md:col-span-2 md:col-start-2 md:row-start-2 md:aspect-auto"
             imageClassName="object-cover object-center"
           />
           <FeaturedFrame
             name="Dining Set"
             category="Dining"
             image={diningSet}
-            className="order-5 aspect-[4/3] md:order-none md:col-span-1 md:col-start-3 md:row-start-2 md:aspect-auto md:h-[calc(100%+1.25rem)]"
-            imageClassName="object-cover object-center"
-          />
-          <FeaturedFrame
-            name="Rocking Chair"
-            category="Seating"
-            image={rockingChair}
-            className="order-6 col-span-2 aspect-[16/11] md:order-none md:col-span-1 md:col-start-4 md:row-start-2 md:aspect-auto md:h-[92%]"
+            className="order-5 aspect-[4/3] md:order-none md:col-span-2 md:col-start-4 md:row-start-2 md:aspect-auto"
             imageClassName="object-cover object-center"
           />
         </div>
