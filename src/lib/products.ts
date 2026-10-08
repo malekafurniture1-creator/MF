@@ -22,16 +22,18 @@ export type ProductWithImage = Product & {
 
 export const CATEGORIES = [
   "Wedding Sets",
-  "Sofas",
-  "Beds",
-  "Dining",
   "Wardrobes",
-  "Tables",
+  "Sofas",
+  "Centre Tables",
+  "Dining",
+  "Beds",
+  "Mattresses",
+  "Dressing Table",
+  "Showcase",
+  "Bed Set",
   "Seating",
-  "Mirrors",
   "Study/Office",
   "Commercial",
-  "Shoe Racks & Storage",
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];

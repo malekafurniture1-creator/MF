@@ -27,6 +27,19 @@ import { fetchCategories } from "@/lib/products";
 import { faqPageSchema, localBusinessSchema } from "@/lib/structured-data";
 import { SITE_URL } from "@/lib/site";
 
+const SHOP_BY_PIECE_ORDER = [
+  "Wedding Sets",
+  "Wardrobes",
+  "Sofas",
+  "Centre Tables",
+  "Dining",
+  "Beds",
+  "Mattresses",
+  "Dressing Table",
+  "Showcase",
+  "Bed Set",
+] as const;
+
 export const Route = createFileRoute("/")({
   head: () => ({
     links: [{ rel: "canonical", href: `${SITE_URL}/` }],
@@ -64,6 +77,10 @@ function Home() {
     queryKey: ["categories", "public"],
     queryFn: () => fetchCategories(),
   });
+  const visibleCategoryNames = new Set(categories.map(({ name }) => name));
+  const shopByPieceCategories = SHOP_BY_PIECE_ORDER.filter((name) =>
+    visibleCategoryNames.has(name),
+  );
   useEffect(() => {
     if (typeof navigator !== 'undefined' && (navigator as any).connection?.saveData) {
       videoRef.current?.pause();
@@ -153,7 +170,7 @@ function Home() {
             </Link>
           </div>
           <div className="no-scrollbar -mx-5 mt-7 flex gap-3 overflow-x-auto px-5 pb-2 md:mx-0 md:px-0">
-            {categories.map(({ name: category }) => (
+            {shopByPieceCategories.map((category) => (
               <Link
                 key={category}
                 to="/explore"
@@ -209,7 +226,7 @@ function Home() {
             bookend
           />
           <FeaturedFrame
-            name="Designer King Bed"
+            name="Designer Bed"
             category="Beds"
             image={designerBed}
             className="order-4 aspect-[4/3] md:order-none md:col-span-1 md:col-start-2 md:row-start-2 md:aspect-auto"

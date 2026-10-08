@@ -209,9 +209,11 @@ drop policy if exists "owner deletes maleka images" on storage.objects;
 create policy "owner deletes maleka images" on storage.objects for delete to authenticated using (bucket_id = 'product-images' and public.has_role(auth.uid(), 'owner'));
 
 insert into public.categories (name, slug, sort_order) values
- ('Sofas','sofas',1), ('Beds','beds',2), ('Dining','dining',3), ('Wardrobes','wardrobes',4),
- ('Tables','tables',5), ('Seating','seating',6), ('Mirrors','mirrors',7), ('Study/Office','study-office',8),
- ('Commercial','commercial',9), ('Wedding Sets','wedding-sets',10), ('Shoe Racks & Storage','shoe-racks-storage',11)
+ ('Wedding Sets','wedding-sets',1), ('Wardrobes','wardrobes',2), ('Sofas','sofas',3),
+ ('Centre Tables','centre-tables',4), ('Dining','dining',5), ('Beds','beds',6),
+ ('Mattresses','mattresses',7), ('Dressing Table','dressing-table',8), ('Showcase','showcase',9),
+ ('Bed Set','bed-set',10), ('Seating','seating',11), ('Study/Office','study-office',12),
+ ('Commercial','commercial',13)
 on conflict (name) do nothing;
 
 -- LAST STEP AFTER you create your owner user in Supabase Authentication:
