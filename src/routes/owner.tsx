@@ -247,31 +247,7 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
   const [stagedImages, setStagedImages] = useState<StagedImage[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Categories management
-  const [categoryList, setCategoryList] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("maleka_custom_categories");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {}
-      }
-    }
-    return [...CATEGORIES];
-  });
-
-  const [hiddenCategories, setHiddenCategories] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("maleka_hidden_categories");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {}
-      }
-    }
-    return [];
-  });
-
+  // Categories are persisted in Supabase; the built-in list is only a setup fallback.
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCategoryInput, setNewCategoryInput] = useState("");
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
@@ -285,6 +261,9 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
     queryKey: ["categories", "owner"],
     queryFn: () => fetchCategories({ includeHidden: true }),
   });
+  const categoryNames = categoryRecords.length
+    ? categoryRecords.map((record) => record.name)
+    : [...CATEGORIES];
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["products"] });
 
@@ -585,32 +564,72 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
     toast.success(category.visible ? `Category "${categoryName}" hidden` : `Category "${categoryName}" visible`);
   }
 
-  function handleAddCategory(e: React.FormEvent) {
+  async function handleAddCategory(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = newCategoryInput.trim();
     if (!trimmed) return;
-    if (categoryList.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+    if (categoryNames.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
       toast.error("Category already exists");
       return;
     }
-    const next = [...categoryList, trimmed];
-    setCategoryList(next);
-    localStorage.setItem("maleka_custom_categories", JSON.stringify(next));
+
+    const baseSlug = trimmed
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    if (!baseSlug) {
+      toast.error("Use at least one letter or number in the category name");
+      return;
+    }
+    const existingSlugs = new Set(categoryRecords.map((record) => record.slug));
+    let slug = baseSlug;
+    let suffix = 2;
+    while (existingSlugs.has(slug)) slug = `${baseSlug}-${suffix++}`;
+
+    const nextSortOrder = categoryRecords.reduce(
+      (highest, record) => Math.max(highest, record.sort_order),
+      0,
+    ) + 1;
+    const { error } = await (supabase as any).from("categories").insert({
+      name: trimmed,
+      slug,
+      visible: true,
+      sort_order: nextSortOrder,
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ["categories"] });
     setNewCategoryInput("");
     setShowAddCategoryModal(false);
     toast.success(`Category "${trimmed}" added`);
   }
 
-  function handleDeleteCategory(categoryName: string) {
+  async function handleDeleteCategory(categoryName: string) {
     const count = products.filter((p) => p.category === categoryName).length;
     if (count > 0) {
       toast.error(`Cannot delete category "${categoryName}" because ${count} product(s) use it.`);
       return;
     }
     if (!window.confirm(`Delete category "${categoryName}"?`)) return;
-    const next = categoryList.filter((c) => c !== categoryName);
-    setCategoryList(next);
-    localStorage.setItem("maleka_custom_categories", JSON.stringify(next));
+
+    const category = categoryRecords.find((record) => record.name === categoryName);
+    if (!category) {
+      toast.error("This category could not be found in Supabase");
+      return;
+    }
+    const { error } = await (supabase as any)
+      .from("categories")
+      .delete()
+      .eq("id", category.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ["categories"] });
     toast.success(`Category "${categoryName}" deleted`);
   }
 
@@ -620,21 +639,46 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
       setEditingCategory(null);
       return;
     }
-    const { error } = await supabase
-      .from("products")
-      .update({ category: trimmed })
-      .eq("category", oldName);
+    if (categoryNames.some((name) => name !== oldName && name.toLowerCase() === trimmed.toLowerCase())) {
+      toast.error("Category already exists");
+      return;
+    }
+
+    const category = categoryRecords.find((record) => record.name === oldName);
+    if (!category) {
+      toast.error("This category could not be found in Supabase");
+      return;
+    }
+    const baseSlug = trimmed
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    if (!baseSlug) {
+      toast.error("Use at least one letter or number in the category name");
+      return;
+    }
+    const existingSlugs = new Set(
+      categoryRecords.filter((record) => record.id !== category.id).map((record) => record.slug),
+    );
+    let slug = baseSlug;
+    let suffix = 2;
+    while (existingSlugs.has(slug)) slug = `${baseSlug}-${suffix++}`;
+
+    const { error } = await (supabase as any).rpc("rename_product_category", {
+      category_id: category.id,
+      old_name: oldName,
+      new_name: trimmed,
+      new_slug: slug,
+    });
 
     if (error) {
       toast.error(error.message);
       return;
     }
 
-    const next = categoryList.map((c) => (c === oldName ? trimmed : c));
-    setCategoryList(next);
-    localStorage.setItem("maleka_custom_categories", JSON.stringify(next));
     setEditingCategory(null);
     toast.success(`Category renamed to "${trimmed}"`);
+    await queryClient.invalidateQueries({ queryKey: ["categories"] });
     refresh();
   }
 
@@ -948,7 +992,7 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
                   onChange={(e) => setDraft({ ...draft, category: e.target.value })}
                   className="mt-2 w-full border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-gold"
                 >
-                  {categoryList.map((c) => (
+                  {categoryNames.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
@@ -1142,10 +1186,10 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
               </form>
             )}
 
-            {(categoryRecords.length ? categoryRecords.map((record) => record.name) : categoryList).map((cat) => {
+            {categoryNames.map((cat) => {
               const productCount = products.filter((p) => p.category === cat).length;
               const categoryRecord = categoryRecords.find((record) => record.name === cat);
-              const isHidden = categoryRecord ? !categoryRecord.visible : hiddenCategories.includes(cat);
+              const isHidden = categoryRecord ? !categoryRecord.visible : false;
               const slug = cat.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
               return (

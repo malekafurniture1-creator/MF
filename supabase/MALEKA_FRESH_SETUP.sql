@@ -66,6 +66,36 @@ create table if not exists public.product_images (
   created_at timestamptz not null default now()
 );
 
+create or replace function public.rename_product_category(
+  category_id uuid,
+  old_name text,
+  new_name text,
+  new_slug text
+)
+returns void
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  if not public.has_role(auth.uid(), 'owner') then
+    raise exception 'Only owners can rename categories';
+  end if;
+
+  update public.categories
+  set name = new_name, slug = new_slug
+  where id = category_id and name = old_name;
+
+  if not found then
+    raise exception 'Category not found';
+  end if;
+
+  update public.products
+  set category = new_name
+  where category = old_name;
+end;
+$$;
+
 create or replace function public.enforce_product_image_limit()
 returns trigger
 language plpgsql
@@ -160,6 +190,8 @@ revoke all on public.user_roles from anon, authenticated;
 grant select on public.user_roles to authenticated;
 revoke execute on function public.has_role(uuid, public.app_role) from public, anon;
 grant execute on function public.has_role(uuid, public.app_role) to authenticated;
+revoke all on function public.rename_product_category(uuid, text, text, text) from public, anon;
+grant execute on function public.rename_product_category(uuid, text, text, text) to authenticated;
 
 -- Temporary storage bucket used by the current website. When R2 is connected,
 -- its public URLs can be stored in image_url without changing these tables.

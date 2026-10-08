@@ -57,6 +57,8 @@ function ProductGallery({ images, name }: { images: string[]; name: string }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const loadedFullImages = useRef(new Set<string>());
+  const thumbnailStripRef = useRef<HTMLDivElement>(null);
+  const thumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   useEffect(() => {
     if (images.length < 2) return;
@@ -75,6 +77,15 @@ function ProductGallery({ images, name }: { images: string[]; name: string }) {
     }, 500);
     return () => window.clearTimeout(timer);
   }, [images, selectedIndex, lightboxIndex, lightboxOpen]);
+
+  useEffect(() => {
+    const strip = thumbnailStripRef.current;
+    const thumbnail = thumbnailRefs.current[selectedIndex];
+    if (!strip || !thumbnail) return;
+
+    const centeredLeft = thumbnail.offsetLeft - (strip.clientWidth - thumbnail.clientWidth) / 2;
+    strip.scrollTo({ left: Math.max(0, centeredLeft), behavior: "smooth" });
+  }, [selectedIndex]);
 
   const touchStartX = useRef<number | null>(null);
 
@@ -111,7 +122,7 @@ function ProductGallery({ images, name }: { images: string[]; name: string }) {
   const currentImage = images[selectedIndex] || images[0];
 
   return (
-    <div className="space-y-4">
+    <div className="w-full min-w-0 max-w-full space-y-4">
       {/* Main Image View */}
       <div
         className="relative overflow-hidden bg-sand aspect-[4/5] rounded-none group cursor-zoom-in border border-border"
@@ -167,14 +178,21 @@ function ProductGallery({ images, name }: { images: string[]; name: string }) {
 
       {/* Thumbnail Strip */}
       {hasMultiple && (
-        <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none">
+        <div
+          ref={thumbnailStripRef}
+          className="no-scrollbar grid w-full max-w-full snap-x snap-mandatory grid-flow-col auto-cols-[calc((100%-1.25rem)/3)] gap-2.5 overflow-x-auto overscroll-x-contain pb-1 touch-pan-x"
+          aria-label="Product image thumbnails"
+        >
           {images.map((img, idx) => (
             <button
               key={img}
+              ref={(element) => {
+                thumbnailRefs.current[idx] = element;
+              }}
               type="button"
               onClick={() => setSelectedIndex(idx)}
               className={cn(
-                "relative size-16 md:size-20 shrink-0 overflow-hidden border transition-all",
+                "relative aspect-[4/5] w-full snap-start overflow-hidden border transition-all",
                 idx === selectedIndex ? "border-gold ring-1 ring-gold" : "border-border opacity-70 hover:opacity-100"
               )}
             >
@@ -274,9 +292,9 @@ function ProductDetail() {
             </Link>
           </div>
         ) : (
-          <article className="mt-8 grid gap-10 md:grid-cols-2 items-start">
+          <article className="mt-8 grid min-w-0 gap-10 md:grid-cols-2 items-start">
             <ProductGallery images={product.images && product.images.length > 0 ? product.images : [product.image]} name={product.name} />
-            <div className="flex flex-col justify-center">
+            <div className="flex min-w-0 flex-col justify-center">
               <p className="eyebrow">{product.category}</p>
               <h1 className="mt-3 font-display text-4xl leading-tight md:text-5xl">{product.name}</h1>
               {product.description ? (
