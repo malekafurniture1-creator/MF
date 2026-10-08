@@ -2,7 +2,7 @@
 
 **Project type:** Responsive furniture-showroom catalogue and enquiry website  
 **Business:** MALEKA Furnitures
-**Location:** 18-7-198/A/3, Murad Mahal, Sultan Shahi Road, Moghalpura, Hyderabad  
+**Location:** 18-7-198/A/3, Opposite Volta Hotel, Moghalpura, Hyderabad  
 **Customer contact:** +91 93910 33589 / +91 89853 14344  
 **Opening hours:** Mon–Sat, 9:00 AM–10:00 PM; Sun, 9:00 AM–6:00 PM  
 **Google rating shown:** approximately 3.7 from 149 reviews

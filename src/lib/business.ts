@@ -1,6 +1,6 @@
 export const BUSINESS = {
   name: "MALEKA Furnitures",
-  address: "18-7-198/A/3, Murad Mahal, Sultan Shahi Road, Moghalpura, Hyderabad",
+  address: "18-7-198/A/3, Opposite Volta Hotel, Moghalpura, Hyderabad",
   phone: "+919391033589",
   phoneDisplay: "+91 93910 33589",
   alternatePhone: "+918985314344",

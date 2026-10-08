@@ -218,9 +218,9 @@ function Home() {
             bookend
           />
           <FeaturedFrame
-            name="Rocking Chair"
-            category="Seating"
-            image={rockingChair}
+            name="Mirrored Dressing Table"
+            category="Dressing Table"
+            image={dressingWardrobe}
             className="order-3 aspect-[3/4] md:order-none md:col-span-1 md:col-start-5 md:row-span-2 md:row-start-1 md:aspect-auto"
             imageClassName="object-cover object-center"
             bookend
@@ -240,9 +240,9 @@ function Home() {
             imageClassName="object-cover object-center"
           />
           <FeaturedFrame
-            name="Mirrored Dressing Table"
-            category="Mirrors"
-            image={dressingWardrobe}
+            name="Rocking Chair"
+            category="Seating"
+            image={rockingChair}
             className="order-6 col-span-2 aspect-[16/11] md:order-none md:col-span-1 md:col-start-4 md:row-start-2 md:aspect-auto md:h-[92%]"
             imageClassName="object-cover object-center"
           />

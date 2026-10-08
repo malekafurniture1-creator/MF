@@ -17,7 +17,7 @@ export function WeddingSection() {
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           <WeddingCard
             image={weddingSet1}
-            title="Murad Complete Wedding Set"
+            title="Royal Brown Complete Bedroom Set"
             text="King bed with its matching dressing table, wardrobe, side tables and stools — delivered as one set."
           />
           <WeddingCard

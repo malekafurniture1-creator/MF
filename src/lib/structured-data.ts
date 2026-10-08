@@ -50,7 +50,7 @@ export const localBusinessSchema = {
   telephone: BUSINESS.phone,
   address: {
     "@type": "PostalAddress",
-    streetAddress: "18-7-198/A/3, Murad Mahal, Sultan Shahi Road",
+    streetAddress: "18-7-198/A/3, Opposite Volta Hotel",
     addressLocality: "Moghalpura",
     addressRegion: "Hyderabad",
     addressCountry: "IN",
