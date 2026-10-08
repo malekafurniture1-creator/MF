@@ -234,6 +234,8 @@ type StagedImage = {
   isPrimary: boolean;
 };
 
+const MAX_PRODUCT_IMAGES = 10;
+
 type ActiveTab = "home" | "products" | "add-product" | "categories" | "offers";
 
 function Dashboard({ email, session }: { email: string; session: Session | null }) {
@@ -422,6 +424,10 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
     if (!draft) return;
     if (stagedImages.length === 0) {
       toast.error("Add at least one photo first");
+      return;
+    }
+    if (stagedImages.length > MAX_PRODUCT_IMAGES) {
+      toast.error(`A product can have up to ${MAX_PRODUCT_IMAGES} photos`);
       return;
     }
     setBusy(true);
@@ -966,7 +972,7 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
 
               <div className="md:col-span-2 mt-2">
                 <div className="flex items-center justify-between mb-2">
-                  <label className="eyebrow">Images ({stagedImages.length} / 4)</label>
+                  <label className="eyebrow">Images ({stagedImages.length} / {MAX_PRODUCT_IMAGES})</label>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   {stagedImages.map((imgItem, i) => (
@@ -1027,7 +1033,7 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
                     </div>
                   ))}
 
-                  {stagedImages.length < 4 && (
+                  {stagedImages.length + cropQueue.length < MAX_PRODUCT_IMAGES && (
                     <div className="flex gap-2">
                       <label className="flex flex-col items-center justify-center w-[105px] h-[130px] border border-dashed border-input text-muted-foreground hover:border-gold cursor-pointer transition-colors p-2 text-center">
                         <Camera className="size-5 mb-2 text-gold" />
@@ -1038,7 +1044,10 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
                           capture="environment"
                           className="hidden"
                           onChange={(e) => {
-                            const files = Array.from(e.target.files ?? []).slice(0, 4 - stagedImages.length);
+                            const files = Array.from(e.target.files ?? []).slice(
+                              0,
+                              MAX_PRODUCT_IMAGES - stagedImages.length - cropQueue.length,
+                            );
                             if (files.length) setCropQueue((q) => [...q, ...files]);
                             e.target.value = "";
                           }}
@@ -1053,7 +1062,10 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
                           multiple
                           className="hidden"
                           onChange={(e) => {
-                            const files = Array.from(e.target.files ?? []).slice(0, 4 - stagedImages.length);
+                            const files = Array.from(e.target.files ?? []).slice(
+                              0,
+                              MAX_PRODUCT_IMAGES - stagedImages.length - cropQueue.length,
+                            );
                             if (files.length) setCropQueue((q) => [...q, ...files]);
                             e.target.value = "";
                           }}
@@ -1233,14 +1245,17 @@ function Dashboard({ email, session }: { email: string; session: Session | null 
           file={cropQueue[0]}
           onCancel={() => setCropQueue((items) => items.slice(1))}
           onComplete={(file) => {
-            setStagedImages((prev) => [
-              ...prev,
-              {
-                file,
-                url: URL.createObjectURL(file),
-                isPrimary: prev.length === 0,
-              },
-            ]);
+            setStagedImages((prev) => {
+              if (prev.length >= MAX_PRODUCT_IMAGES) return prev;
+              return [
+                ...prev,
+                {
+                  file,
+                  url: URL.createObjectURL(file),
+                  isPrimary: prev.length === 0,
+                },
+              ];
+            });
             setCropQueue((items) => items.slice(1));
           }}
         />
